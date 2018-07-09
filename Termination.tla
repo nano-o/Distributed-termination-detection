@@ -53,10 +53,10 @@ pb == CHOOSE p \in P : p # pa
 (*         Candidate inductive invariant:                                  *)
 (***************************************************************************)
         Inv1 == \A p \in P : <<p,p>> \notin BagToSet(msgs)
-        Inv2 == \A p,q \in visited : <<p,q>> \notin BagToSet(msgs)
+        Inv2 == pc[d] = "Done" => consistent = P
         Inv3 ==
-            \/  \A p,q \in visited : <<p,q>> \notin BagToSet(msgs)
-            \/  \E p \in visited, q \in P \ visited : r[p][q] > R[p][q]
+            \/  \A p,q \in consistent : <<p,q>> \notin BagToSet(msgs)
+            \/  \E p \in consistent, q \in P \ consistent : r[p][q] > R[p][q]
         Inv4 == \A p,q \in P : s[p][q] - r[q][p] = CopiesIn(<<p,q>>, msgs)
     }
     process (node \in P) {
@@ -66,19 +66,20 @@ pb == CHOOSE p \in P : p # pa
                     with (Q \in SUBSET (P \ {self})) {
                         msgs := (msgs (-) SetToBag({m})) (+) SetToBag({<<self,p>> : p \in Q});
                         s[self] := [p \in P |-> IF p \in Q THEN @[p]+1 ELSE @[p]];
-                        total := total + Cardinality(Q)
+                        total := total + Cardinality(Q) \* ghost update 
                     }
                 };
                 goto sendRcv
     }
     process (daemon = d) {
-        loop:   while (NotStarted \/ \E p,q \in P : p # q /\ S[p][q] # R[q][p]) {
+        loop:   while (NotStarted \/ visited # P \/ \E p,q \in visited : p # q /\ S[p][q] # R[q][p]) {
                     with (p \in P) {
                         S[p] := s[p]; 
                         R[p] := r[p];
-                        visited := visited \union {p} };
+                        visited := visited \union {p}  \* ghost update 
+                    };
                     if (\E p,q \in P : S[p][q] # 0 \/ R[p][q] # 0)
-                        consistent := Maximal({Q \in SUBSET P : Consistent(Q, S, R)})
+                        consistent := Maximal({Q \in SUBSET visited : Consistent(Q, S, R)}) \* ghost update
                 }
     }
 }
@@ -94,11 +95,14 @@ NotStarted == \A p,q \in P : S[p][q] = 0 /\ R[p][q] = 0
 
 
 Correctness == pc[d] = "Done" => msgs = EmptyBag
+
+
+
 Inv1 == \A p \in P : <<p,p>> \notin BagToSet(msgs)
-Inv2 == pc[d] = "l2" => \A p,q \in visited : <<p,q>> \notin BagToSet(msgs)
-Inv3 == pc[d] = "l2" =>
-    \/  \A p,q \in visited : <<p,q>> \notin BagToSet(msgs)
-    \/  \E p \in visited, q \in P \ visited : r[p][q] > R[p][q]
+Inv2 == pc[d] = "Done" => consistent = P
+Inv3 ==
+    \/  \A p,q \in consistent : <<p,q>> \notin BagToSet(msgs)
+    \/  \E p \in consistent, q \in P \ consistent : r[p][q] > R[p][q]
 Inv4 == \A p,q \in P : s[p][q] - r[q][p] = CopiesIn(<<p,q>>, msgs)
 
 
@@ -132,13 +136,13 @@ sendRcv(self) == /\ pc[self] = "sendRcv"
 node(self) == sendRcv(self)
 
 loop == /\ pc[d] = "loop"
-        /\ IF NotStarted \/ \E p,q \in P : p # q /\ S[p][q] # R[q][p]
+        /\ IF NotStarted \/ visited # P \/ \E p,q \in visited : p # q /\ S[p][q] # R[q][p]
               THEN /\ \E p \in P:
                         /\ S' = [S EXCEPT ![p] = s[p]]
                         /\ R' = [R EXCEPT ![p] = r[p]]
                         /\ visited' = (visited \union {p})
                    /\ IF \E p,q \in P : S'[p][q] # 0 \/ R'[p][q] # 0
-                         THEN /\ consistent' = Maximal({Q \in SUBSET P : Consistent(Q, S', R')})
+                         THEN /\ consistent' = Maximal({Q \in SUBSET visited' : Consistent(Q, S', R')})
                          ELSE /\ TRUE
                               /\ UNCHANGED consistent
                    /\ pc' = [pc EXCEPT ![d] = "loop"]
@@ -160,5 +164,5 @@ Termination == <>(\A self \in ProcSet: pc[self] = "Done")
 \* END TRANSLATION
 =============================================================================
 \* Modification History
-\* Last modified Mon Jul 09 10:43:07 PDT 2018 by nano
+\* Last modified Mon Jul 09 11:11:08 PDT 2018 by nano
 \* Created Mon Mar 13 09:03:31 PDT 2017 by nano
