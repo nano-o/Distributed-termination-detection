@@ -1,4 +1,4 @@
----------------------------- MODULE Termination2 ---------------------------
+---------------------------- MODULE Termination ---------------------------
 
 (***************************************************************************)
 (* Distributed termination detection of a message-driven computation.  A   *)
@@ -8,7 +8,9 @@
 (* arbitrary nodes one by one, each time noting how many messages the node *)
 (* has sent to each other node, and how many it has received from each     *)
 (* other node.  When the daemon sees that all numbers match, it declares   *)
-(* that the system has terminated.  Why is the daemon right?               *)
+(* that the system has terminated.  This is the Channel Counting Algorithm *)
+(* described in: Mattern, Friedemann.  "Algorithms for distributed         *)
+(* termination detection." Distributed computing 2.3 (1987): 161-175.      *)
 (***************************************************************************)
 
 \* Bags are multi-sets.
@@ -43,7 +45,19 @@ pb == CHOOSE p \in P : p # pa
         Consistent(Q, Sent, Rcvd) == \A q1,q2 \in Q : q1 # q2 => Sent[q1][q2] = Rcvd[q2][q1]
         Maximal(Qs) == CHOOSE Q \in Qs : \A Q2 \in Qs : Q # Q2 => \neg (Q \subseteq Q2)
         NotStarted == \A p,q \in P : S[p][q] = 0 /\ R[p][q] = 0
+(***************************************************************************)
+(*         The correctness condition:                                      *)
+(***************************************************************************)
         Correctness == pc[d] = "Done" => msgs = EmptyBag  
+(***************************************************************************)
+(*         Candidate inductive invariant:                                  *)
+(***************************************************************************)
+        Inv1 == \A p \in P : <<p,p>> \notin BagToSet(msgs)
+        Inv2 == \A p,q \in visited : <<p,q>> \notin BagToSet(msgs)
+        Inv3 ==
+            \/  \A p,q \in visited : <<p,q>> \notin BagToSet(msgs)
+            \/  \E p \in visited, q \in P \ visited : r[p][q] > R[p][q]
+        Inv4 == \A p,q \in P : s[p][q] - r[q][p] = CopiesIn(<<p,q>>, msgs)
     }
     process (node \in P) {
         sendRcv:    with (m \in BagToSet(msgs)) {
@@ -76,7 +90,16 @@ VARIABLES msgs, s, r, S, R, consistent, visited, total, pc
 Consistent(Q, Sent, Rcvd) == \A q1,q2 \in Q : q1 # q2 => Sent[q1][q2] = Rcvd[q2][q1]
 Maximal(Qs) == CHOOSE Q \in Qs : \A Q2 \in Qs : Q # Q2 => \neg (Q \subseteq Q2)
 NotStarted == \A p,q \in P : S[p][q] = 0 /\ R[p][q] = 0
+
+
+
 Correctness == pc[d] = "Done" => msgs = EmptyBag
+Inv1 == \A p \in P : <<p,p>> \notin BagToSet(msgs)
+Inv2 == pc[d] = "l2" => \A p,q \in visited : <<p,q>> \notin BagToSet(msgs)
+Inv3 == pc[d] = "l2" =>
+    \/  \A p,q \in visited : <<p,q>> \notin BagToSet(msgs)
+    \/  \E p \in visited, q \in P \ visited : r[p][q] > R[p][q]
+Inv4 == \A p,q \in P : s[p][q] - r[q][p] = CopiesIn(<<p,q>>, msgs)
 
 
 vars == << msgs, s, r, S, R, consistent, visited, total, pc >>
@@ -137,5 +160,5 @@ Termination == <>(\A self \in ProcSet: pc[self] = "Done")
 \* END TRANSLATION
 =============================================================================
 \* Modification History
-\* Last modified Wed Mar 15 10:28:35 PDT 2017 by nano
+\* Last modified Mon Jul 09 10:43:07 PDT 2018 by nano
 \* Created Mon Mar 13 09:03:31 PDT 2017 by nano
