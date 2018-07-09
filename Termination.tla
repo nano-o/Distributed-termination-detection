@@ -1,139 +1,132 @@
----------------------------- MODULE Termination ----------------------------
+---------------------------- MODULE Termination2 ---------------------------
 
-EXTENDS Bags, Naturals, FiniteSets
+(***************************************************************************)
+(* Distributed termination detection of a message-driven computation.  A   *)
+(* set of processes exchange messages.  Initialy there is one message in   *)
+(* the network.  A process can receive a messages and send 0, 1, or more   *)
+(* messages as a response in a single atomic step.  A daemon visits        *)
+(* arbitrary nodes one by one, each time noting how many messages the node *)
+(* has sent to each other node, and how many it has received from each     *)
+(* other node.  When the daemon sees that all numbers match, it declares   *)
+(* that the system has terminated.  Why is the daemon right?               *)
+(***************************************************************************)
 
+\* Bags are multi-sets.
+EXTENDS Bags, Naturals, FiniteSets, TLC
+
+\* P is the set of process indentifiers, d is the identifier of the termination daemon.
 CONSTANTS P, d
+\* Initially, there will a single message from pa to pb.
 pa == CHOOSE p \in P : TRUE
 pb == CHOOSE p \in P : p # pa
 
 (*
---algorithm MessageDriven {
-    variables 
-        (* msgs \in {ms \in SubBag([m \in P\times P |-> MaxCopies]) : 
-            \A p \in P : <<p,p>> \notin BagToSet(ms)}; *)
+--algorithm MessageDrivenTermination {
+    variables
+        \* the state of the network. Messages are of the form <<sender, destination>>
         msgs = SetToBag({<<pa,pb>>});
-        s = [p \in P |-> [q \in P |-> IF <<p,q>> \in BagToSet(msgs) THEN CopiesIn(<<p,q>>, msgs) ELSE 0]];
+        \* s[p][q] is the number of messages sent from p to q
+        s = [p \in P |-> [q \in P |-> IF <<p,q>> = <<pa,pb>> THEN 1 ELSE 0]];
+        \* r[p][q] is the number of messages received by p from q
         r = [p \in P |-> [q \in P |-> 0]];
         \* The numbers recorded by the daemon:
         S = [p \in P |-> [q \in P |-> 0]];
         R = [p \in P |-> [q \in P |-> 0]];
-        \* The processor that the daemon visited:
+        \* ghost variables:
+        \* The largets set of nodes whose numbers match according to what the daemon saw:
+        consistent = {};
+        \* the set of nodes that the daemon has visited:
         visited = {};
-        \* ghost variable recording the total number of messages ever sent.
-        \* Used to limit the model-checker.
-        total = BagCardinality(msgs);
+        \* total number of messages ever sent. Used to stop the model-checker:
+        total = 1;
     define {
-        Correctness == pc[d] = "Done" => msgs = EmptyBag 
-        Inv1 == \A p \in P : <<p,p>> \notin BagToSet(msgs)
-        Test == pc[d] = "l2" /\ \E p,q \in P : 
-            visited = {p,q} /\ S[p][q] = 1 /\ R[q][p] = 1 /\ <<p,q>> \in BagToSet(msgs)
-        Test2 == pc[d] = "l2" /\ \E p,q \in P :
-            /\  visited = {p}
-            /\  s[p][q] = 2
-            /\  S[p][q] = 1
-            /\  r[q][p] = 0
-        Inv2 == pc[d] = "l2" => \A p,q \in visited : <<p,q>> \notin BagToSet(msgs)
-        Inv3 == pc[d] = "l2" => 
-            \/  \A p,q \in visited : <<p,q>> \notin BagToSet(msgs)
-            \/  \E p \in visited, q \in P \ visited : r[p][q] > R[p][q]
-        Inv4 == \A p,q \in P : s[p][q] - r[q][p] = CopiesIn(<<p,q>>, msgs)
+        Consistent(Q, Sent, Rcvd) == \A q1,q2 \in Q : q1 # q2 => Sent[q1][q2] = Rcvd[q2][q1]
+        Maximal(Qs) == CHOOSE Q \in Qs : \A Q2 \in Qs : Q # Q2 => \neg (Q \subseteq Q2)
+        NotStarted == \A p,q \in P : S[p][q] = 0 /\ R[p][q] = 0
+        Correctness == pc[d] = "Done" => msgs = EmptyBag  
     }
-    process (proc \in P) {
-        l1: with (m \in BagToSet(msgs)) {
-                when (m[2] = self);
-                r[self] := [r[self] EXCEPT ![m[1]] = @ + 1];
-                with (Q \in SUBSET (P \ {self})) {
-                    msgs := (msgs (-) SetToBag({m})) (+) SetToBag({<<self,p>> : p \in Q});
-                    s[self] := [p \in P |-> IF p \in Q THEN @[p]+1 ELSE @[p]];
-                    total := total + Cardinality(Q)
-                }
-            };
-            goto l1
+    process (node \in P) {
+        sendRcv:    with (m \in BagToSet(msgs)) {
+                    when (m[2] = self);
+                    r[self] := [r[self] EXCEPT ![m[1]] = @ + 1];
+                    with (Q \in SUBSET (P \ {self})) {
+                        msgs := (msgs (-) SetToBag({m})) (+) SetToBag({<<self,p>> : p \in Q});
+                        s[self] := [p \in P |-> IF p \in Q THEN @[p]+1 ELSE @[p]];
+                        total := total + Cardinality(Q)
+                    }
+                };
+                goto sendRcv
     }
     process (daemon = d) {
-        l1: visited := {};
-        l2: while (visited # P)
-            with (p \in P \ visited) {
-                S[p] := s[p]; 
-                R[p] := r[p];
-                visited := visited \union {p};
-                if (\E p1,p2 \in visited : p1 # p2 /\ S[p1][p2] # R[p2][p1])
-                    goto l1
-            }
+        loop:   while (NotStarted \/ \E p,q \in P : p # q /\ S[p][q] # R[q][p]) {
+                    with (p \in P) {
+                        S[p] := s[p]; 
+                        R[p] := r[p];
+                        visited := visited \union {p} };
+                    if (\E p,q \in P : S[p][q] # 0 \/ R[p][q] # 0)
+                        consistent := Maximal({Q \in SUBSET P : Consistent(Q, S, R)})
+                }
     }
 }
 *)
 \* BEGIN TRANSLATION
-\* Label l1 of process proc at line 42 col 18 changed to l1_
-VARIABLES msgs, s, r, S, R, visited, total, pc
+VARIABLES msgs, s, r, S, R, consistent, visited, total, pc
 
 (* define statement *)
+Consistent(Q, Sent, Rcvd) == \A q1,q2 \in Q : q1 # q2 => Sent[q1][q2] = Rcvd[q2][q1]
+Maximal(Qs) == CHOOSE Q \in Qs : \A Q2 \in Qs : Q # Q2 => \neg (Q \subseteq Q2)
+NotStarted == \A p,q \in P : S[p][q] = 0 /\ R[p][q] = 0
 Correctness == pc[d] = "Done" => msgs = EmptyBag
-Inv1 == \A p \in P : <<p,p>> \notin BagToSet(msgs)
-Test == pc[d] = "l2" /\ \E p,q \in P :
-    visited = {p,q} /\ S[p][q] = 1 /\ R[q][p] = 1 /\ <<p,q>> \in BagToSet(msgs)
-Test2 == pc[d] = "l2" /\ \E p,q \in P :
-    /\  visited = {p}
-    /\  s[p][q] = 2
-    /\  S[p][q] = 1
-    /\  r[q][p] = 0
-Inv2 == pc[d] = "l2" => \A p,q \in visited : <<p,q>> \notin BagToSet(msgs)
-Inv3 == pc[d] = "l2" =>
-    \/  \A p,q \in visited : <<p,q>> \notin BagToSet(msgs)
-    \/  \E p \in visited, q \in P \ visited : r[p][q] > R[p][q]
-Inv4 == \A p,q \in P : s[p][q] - r[q][p] = CopiesIn(<<p,q>>, msgs)
 
 
-vars == << msgs, s, r, S, R, visited, total, pc >>
+vars == << msgs, s, r, S, R, consistent, visited, total, pc >>
 
 ProcSet == (P) \cup {d}
 
 Init == (* Global variables *)
         /\ msgs = SetToBag({<<pa,pb>>})
-        /\ s = [p \in P |-> [q \in P |-> IF <<p,q>> \in BagToSet(msgs) THEN CopiesIn(<<p,q>>, msgs) ELSE 0]]
+        /\ s = [p \in P |-> [q \in P |-> IF <<p,q>> = <<pa,pb>> THEN 1 ELSE 0]]
         /\ r = [p \in P |-> [q \in P |-> 0]]
         /\ S = [p \in P |-> [q \in P |-> 0]]
         /\ R = [p \in P |-> [q \in P |-> 0]]
+        /\ consistent = {}
         /\ visited = {}
-        /\ total = BagCardinality(msgs)
-        /\ pc = [self \in ProcSet |-> CASE self \in P -> "l1_"
-                                        [] self = d -> "l1"]
+        /\ total = 1
+        /\ pc = [self \in ProcSet |-> CASE self \in P -> "sendRcv"
+                                        [] self = d -> "loop"]
 
-l1_(self) == /\ pc[self] = "l1_"
-             /\ \E m \in BagToSet(msgs):
-                  /\ (m[2] = self)
-                  /\ r' = [r EXCEPT ![self] = [r[self] EXCEPT ![m[1]] = @ + 1]]
-                  /\ \E Q \in SUBSET (P \ {self}):
-                       /\ msgs' = (msgs (-) SetToBag({m})) (+) SetToBag({<<self,p>> : p \in Q})
-                       /\ s' = [s EXCEPT ![self] = [p \in P |-> IF p \in Q THEN @[p]+1 ELSE @[p]]]
-                       /\ total' = total + Cardinality(Q)
-             /\ pc' = [pc EXCEPT ![self] = "l1_"]
-             /\ UNCHANGED << S, R, visited >>
+sendRcv(self) == /\ pc[self] = "sendRcv"
+                 /\ \E m \in BagToSet(msgs):
+                      /\ (m[2] = self)
+                      /\ r' = [r EXCEPT ![self] = [r[self] EXCEPT ![m[1]] = @ + 1]]
+                      /\ \E Q \in SUBSET (P \ {self}):
+                           /\ msgs' = (msgs (-) SetToBag({m})) (+) SetToBag({<<self,p>> : p \in Q})
+                           /\ s' = [s EXCEPT ![self] = [p \in P |-> IF p \in Q THEN @[p]+1 ELSE @[p]]]
+                           /\ total' = total + Cardinality(Q)
+                 /\ pc' = [pc EXCEPT ![self] = "sendRcv"]
+                 /\ UNCHANGED << S, R, consistent, visited >>
 
-proc(self) == l1_(self)
+node(self) == sendRcv(self)
 
-l1 == /\ pc[d] = "l1"
-      /\ visited' = {}
-      /\ pc' = [pc EXCEPT ![d] = "l2"]
-      /\ UNCHANGED << msgs, s, r, S, R, total >>
+loop == /\ pc[d] = "loop"
+        /\ IF NotStarted \/ \E p,q \in P : p # q /\ S[p][q] # R[q][p]
+              THEN /\ \E p \in P:
+                        /\ S' = [S EXCEPT ![p] = s[p]]
+                        /\ R' = [R EXCEPT ![p] = r[p]]
+                        /\ visited' = (visited \union {p})
+                   /\ IF \E p,q \in P : S'[p][q] # 0 \/ R'[p][q] # 0
+                         THEN /\ consistent' = Maximal({Q \in SUBSET P : Consistent(Q, S', R')})
+                         ELSE /\ TRUE
+                              /\ UNCHANGED consistent
+                   /\ pc' = [pc EXCEPT ![d] = "loop"]
+              ELSE /\ pc' = [pc EXCEPT ![d] = "Done"]
+                   /\ UNCHANGED << S, R, consistent, visited >>
+        /\ UNCHANGED << msgs, s, r, total >>
 
-l2 == /\ pc[d] = "l2"
-      /\ IF visited # P
-            THEN /\ \E p \in P \ visited:
-                      /\ S' = [S EXCEPT ![p] = s[p]]
-                      /\ R' = [R EXCEPT ![p] = r[p]]
-                      /\ visited' = (visited \union {p})
-                      /\ IF \E p1,p2 \in visited' : p1 # p2 /\ S'[p1][p2] # R'[p2][p1]
-                            THEN /\ pc' = [pc EXCEPT ![d] = "l1"]
-                            ELSE /\ pc' = [pc EXCEPT ![d] = "l2"]
-            ELSE /\ pc' = [pc EXCEPT ![d] = "Done"]
-                 /\ UNCHANGED << S, R, visited >>
-      /\ UNCHANGED << msgs, s, r, total >>
-
-daemon == l1 \/ l2
+daemon == loop
 
 Next == daemon
-           \/ (\E self \in P: proc(self))
+           \/ (\E self \in P: node(self))
            \/ (* Disjunct to prevent deadlock on termination *)
               ((\A self \in ProcSet: pc[self] = "Done") /\ UNCHANGED vars)
 
@@ -142,8 +135,7 @@ Spec == Init /\ [][Next]_vars
 Termination == <>(\A self \in ProcSet: pc[self] = "Done")
 
 \* END TRANSLATION
-
 =============================================================================
 \* Modification History
-\* Last modified Wed Feb 28 16:07:16 PST 2018 by nano
+\* Last modified Wed Mar 15 10:28:35 PDT 2017 by nano
 \* Created Mon Mar 13 09:03:31 PDT 2017 by nano
