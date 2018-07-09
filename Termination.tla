@@ -8,9 +8,15 @@
 (* arbitrary nodes one by one, each time noting how many messages the node *)
 (* has sent to each other node, and how many it has received from each     *)
 (* other node.  When the daemon sees that all numbers match, it declares   *)
-(* that the system has terminated.  This is the Channel Counting Algorithm *)
-(* described in: Mattern, Friedemann.  "Algorithms for distributed         *)
-(* termination detection." Distributed computing 2.3 (1987): 161-175.      *)
+(* that the system has terminated.                                         *)
+(*                                                                         *)
+(* This is the Channel Counting Algorithm described in: Mattern,           *)
+(* Friedemann.  "Algorithms for distributed termination detection."        *)
+(* Distributed computing 2.3 (1987): 161-175.  The first version of this   *)
+(* algorithm seems to be found in: Kumar, Devendra.  "A class of           *)
+(* termination detection algorithms for distributed computations."         *)
+(* International Conference on Foundations of Software Technology and      *)
+(* Theoretical Computer Science.  Springer, Berlin, Heidelberg, 1985.      *)
 (***************************************************************************)
 
 \* Bags are multi-sets.
@@ -164,5 +170,5 @@ Termination == <>(\A self \in ProcSet: pc[self] = "Done")
 \* END TRANSLATION
 =============================================================================
 \* Modification History
-\* Last modified Mon Jul 09 11:11:08 PDT 2018 by nano
+\* Last modified Mon Jul 09 11:17:35 PDT 2018 by nano
 \* Created Mon Mar 13 09:03:31 PDT 2017 by nano
