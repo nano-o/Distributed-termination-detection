@@ -40,17 +40,15 @@ pb == CHOOSE p \in P : p # pa
         \* The numbers recorded by the daemon:
         S = [p \in P |-> [q \in P |-> 0]];
         R = [p \in P |-> [q \in P |-> 0]];
-        \* ghost variables:
-        \* The largets set of nodes whose numbers match according to what the daemon saw:
-        consistent = {};
         \* the set of nodes that the daemon has visited:
         visited = {};
-        \* total number of messages ever sent. Used to stop the model-checker:
+        \* total number of messages ever sent. This is a ghost variable used to limit state-exploration by TLC:
         total = 1;
     define {
-        Consistent(Q, Sent, Rcvd) == \A q1,q2 \in Q : q1 # q2 => Sent[q1][q2] = Rcvd[q2][q1]
+        Consistent(Q) == \A q1,q2 \in Q : q1 # q2 => S[q1][q2] = R[q2][q1]
         Maximal(Qs) == CHOOSE Q \in Qs : \A Q2 \in Qs : Q # Q2 => \neg (Q \subseteq Q2)
-        NotStarted == \A p,q \in P : S[p][q] = 0 /\ R[p][q] = 0
+        \* The largets set of nodes whose numbers match according to what the daemon saw:
+        MaxConsistent == Maximal({Q \in SUBSET visited : Consistent(Q)})
 (***************************************************************************)
 (*         The correctness condition:                                      *)
 (***************************************************************************)
@@ -59,10 +57,10 @@ pb == CHOOSE p \in P : p # pa
 (*         Candidate inductive invariant:                                  *)
 (***************************************************************************)
         Inv1 == \A p \in P : <<p,p>> \notin BagToSet(msgs)
-        Inv2 == pc[d] = "Done" => consistent = P
+        Inv2 == pc[d] = "Done" => MaxConsistent = P
         Inv3 ==
-            \/  \A p,q \in consistent : <<p,q>> \notin BagToSet(msgs)
-            \/  \E p \in consistent, q \in P \ consistent : r[p][q] > R[p][q]
+            \/  \A p,q \in MaxConsistent : <<p,q>> \notin BagToSet(msgs)
+            \/  \E p \in MaxConsistent, q \in P \ MaxConsistent : r[p][q] > R[p][q]
         Inv4 == \A p,q \in P : s[p][q] - r[q][p] = CopiesIn(<<p,q>>, msgs)
     }
     process (node \in P) {
@@ -78,25 +76,24 @@ pb == CHOOSE p \in P : p # pa
                 goto sendRcv
     }
     process (daemon = d) {
-        loop:   while (NotStarted \/ visited # P \/ \E p,q \in visited : p # q /\ S[p][q] # R[q][p]) {
+        loop:   while (visited # P \/ \E p,q \in visited : p # q /\ S[p][q] # R[q][p]) {
                     with (p \in P) {
                         S[p] := s[p]; 
                         R[p] := r[p];
-                        visited := visited \union {p}  \* ghost update 
-                    };
-                    if (\E p,q \in P : S[p][q] # 0 \/ R[p][q] # 0)
-                        consistent := Maximal({Q \in SUBSET visited : Consistent(Q, S, R)}) \* ghost update
+                        visited := visited \union {p}
+                    }
                 }
     }
 }
 *)
 \* BEGIN TRANSLATION
-VARIABLES msgs, s, r, S, R, consistent, visited, total, pc
+VARIABLES msgs, s, r, S, R, visited, total, pc
 
 (* define statement *)
-Consistent(Q, Sent, Rcvd) == \A q1,q2 \in Q : q1 # q2 => Sent[q1][q2] = Rcvd[q2][q1]
+Consistent(Q) == \A q1,q2 \in Q : q1 # q2 => S[q1][q2] = R[q2][q1]
 Maximal(Qs) == CHOOSE Q \in Qs : \A Q2 \in Qs : Q # Q2 => \neg (Q \subseteq Q2)
-NotStarted == \A p,q \in P : S[p][q] = 0 /\ R[p][q] = 0
+
+MaxConsistent == Maximal({Q \in SUBSET visited : Consistent(Q)})
 
 
 
@@ -105,14 +102,14 @@ Correctness == pc[d] = "Done" => msgs = EmptyBag
 
 
 Inv1 == \A p \in P : <<p,p>> \notin BagToSet(msgs)
-Inv2 == pc[d] = "Done" => consistent = P
+Inv2 == pc[d] = "Done" => MaxConsistent = P
 Inv3 ==
-    \/  \A p,q \in consistent : <<p,q>> \notin BagToSet(msgs)
-    \/  \E p \in consistent, q \in P \ consistent : r[p][q] > R[p][q]
+    \/  \A p,q \in MaxConsistent : <<p,q>> \notin BagToSet(msgs)
+    \/  \E p \in MaxConsistent, q \in P \ MaxConsistent : r[p][q] > R[p][q]
 Inv4 == \A p,q \in P : s[p][q] - r[q][p] = CopiesIn(<<p,q>>, msgs)
 
 
-vars == << msgs, s, r, S, R, consistent, visited, total, pc >>
+vars == << msgs, s, r, S, R, visited, total, pc >>
 
 ProcSet == (P) \cup {d}
 
@@ -122,7 +119,6 @@ Init == (* Global variables *)
         /\ r = [p \in P |-> [q \in P |-> 0]]
         /\ S = [p \in P |-> [q \in P |-> 0]]
         /\ R = [p \in P |-> [q \in P |-> 0]]
-        /\ consistent = {}
         /\ visited = {}
         /\ total = 1
         /\ pc = [self \in ProcSet |-> CASE self \in P -> "sendRcv"
@@ -137,23 +133,19 @@ sendRcv(self) == /\ pc[self] = "sendRcv"
                            /\ s' = [s EXCEPT ![self] = [p \in P |-> IF p \in Q THEN @[p]+1 ELSE @[p]]]
                            /\ total' = total + Cardinality(Q)
                  /\ pc' = [pc EXCEPT ![self] = "sendRcv"]
-                 /\ UNCHANGED << S, R, consistent, visited >>
+                 /\ UNCHANGED << S, R, visited >>
 
 node(self) == sendRcv(self)
 
 loop == /\ pc[d] = "loop"
-        /\ IF NotStarted \/ visited # P \/ \E p,q \in visited : p # q /\ S[p][q] # R[q][p]
+        /\ IF visited # P \/ \E p,q \in visited : p # q /\ S[p][q] # R[q][p]
               THEN /\ \E p \in P:
                         /\ S' = [S EXCEPT ![p] = s[p]]
                         /\ R' = [R EXCEPT ![p] = r[p]]
                         /\ visited' = (visited \union {p})
-                   /\ IF \E p,q \in P : S'[p][q] # 0 \/ R'[p][q] # 0
-                         THEN /\ consistent' = Maximal({Q \in SUBSET visited' : Consistent(Q, S', R')})
-                         ELSE /\ TRUE
-                              /\ UNCHANGED consistent
                    /\ pc' = [pc EXCEPT ![d] = "loop"]
               ELSE /\ pc' = [pc EXCEPT ![d] = "Done"]
-                   /\ UNCHANGED << S, R, consistent, visited >>
+                   /\ UNCHANGED << S, R, visited >>
         /\ UNCHANGED << msgs, s, r, total >>
 
 daemon == loop
@@ -170,5 +162,5 @@ Termination == <>(\A self \in ProcSet: pc[self] = "Done")
 \* END TRANSLATION
 =============================================================================
 \* Modification History
-\* Last modified Mon Jul 09 11:17:35 PDT 2018 by nano
+\* Last modified Mon Jul 09 11:28:45 PDT 2018 by nano
 \* Created Mon Mar 13 09:03:31 PDT 2017 by nano
