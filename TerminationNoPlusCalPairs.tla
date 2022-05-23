@@ -50,7 +50,11 @@ VARIABLES
     visited,
     \* terminated is set to TRUE when the daemon terminates
     \* @type: Bool;
-    terminated
+    terminated,
+    \* @type: Set(Set(P));
+    debug,
+    \* @type: Bool;
+    step
 
 \* The correstness property: when the daemon terminates, there are no messages in flight (i.e. the distributed computation is finished):
 Correctness == terminated => \A p,q \in P : msgs[<<p,q>>] = 0
@@ -67,6 +71,8 @@ Init ==
     /\ R = [pq \in AllPairs |-> 0]
     /\ visited = {}
     /\ terminated = FALSE
+    /\ debug = {}
+    /\ step = FALSE
 
 TypeOkay ==
   /\  msgs \in [AllPairs -> Int]
@@ -81,6 +87,8 @@ TypeOkay ==
   /\  \A pq \in AllPairs : R[pq] >= 0
   /\  visited \in SUBSET P
   /\  terminated \in BOOLEAN
+  /\  debug \in SUBSET (SUBSET P)
+  /\  step \in BOOLEAN
 
 (***************************************************************************)
 (* Compute the new msgs corresponding to sending one message to each       *)
@@ -106,7 +114,7 @@ process(self) ==
       /\ \E Q \in SUBSET (P \ {self}):
            /\ msgs' = [SendTo(Q, self, msgs) EXCEPT ![<<p,self>>] = @-1]
            /\ s' = SendTo(Q, self, s)
- /\ UNCHANGED << S, R, visited, terminated >>
+ /\ UNCHANGED << S, R, visited, terminated, debug, step >>
 
 \* @type: (P, <<P,P>> -> Int, <<P,P>> -> Int) => <<P,P>> -> Int;
 UpdateCount(p, processCount, daemonCount) ==
@@ -115,6 +123,10 @@ UpdateCount(p, processCount, daemonCount) ==
     Update(count_, q) == [count_ EXCEPT ![<<p,q>>] = processCount[<<p,q>>]]
   IN
     ApaFoldSet(Update, daemonCount, P)
+
+Consistent(Q) ==
+  /\ Q \subseteq visited
+  /\ \A q1,q2 \in Q : S[<<q1,q2>>] = R[<<q2,q1>>]
 
 (***************************************************************************)
 (* While the daemon has not visited all processes, or it has but there is  *)
@@ -128,15 +140,19 @@ daemon ==
                         /\ S' = UpdateCount(p, s, S)
                         /\ R' = UpdateCount(p, r, R)
                         /\ visited' = (visited \union {p})
+                        (* /\ debug' = [Q \in SUBSET P |-> Consistent(Q)] *)
+                        /\ debug' = {Q \in SUBSET P : Consistent(Q)}
                         /\ UNCHANGED terminated
               ELSE /\ terminated' = TRUE
-                   /\ UNCHANGED << S, R, visited >>
-        /\ UNCHANGED << msgs, s, r >>
+                   /\ UNCHANGED << S, R, visited, debug >>
+        /\ UNCHANGED << msgs, s, r, step >>
 
 Next == daemon
            \/ (\E self \in P : process(self))
 
-vars == << msgs, s, r, S, R, visited >>
+
+vars == << msgs, s, r, S, R, visited, terminated, debug >>
+Next_ == UNCHANGED vars /\ step' = TRUE
 Spec == Init /\ [][Next]_vars
 
 \* Test invariants
@@ -162,22 +178,18 @@ Inv5_ == TypeOkay /\ Inv1 /\ Inv2 /\ Inv3 /\ Inv4 /\ Inv5
 
 \* Now the main invariant
 
-Consistent(Q) == \A q1,q2 \in Q : q1 # q2 => S[<<q1,q2>>] = R[<<q2,q1>>]
-
 MainInv == visited # {} => \A Q \in SUBSET P : Consistent(Q) =>
     \/  \A p,q \in Q : msgs[<<p,q>>] = 0
     \/  \E p \in Q, q \in P \ Q : r[<<p,q>>] > R[<<p,q>>]
 MainInv_ == TypeOkay /\ Inv1 /\ Inv2 /\ Inv3 /\ Inv4 /\ Inv5 /\ MainInv
 
-View == [Q \in SUBSET P |-> Consistent(Q)]
+\* Maximal(Qs) == CHOOSE Q \in Qs : \A Q2 \in Qs : Q # Q2 => \neg (Q \subseteq Q2)
+\* MaxConsistent == Maximal({Q \in SUBSET visited : Consistent(Q)})
 
-Maximal(Qs) == CHOOSE Q \in Qs : \A Q2 \in Qs : Q # Q2 => \neg (Q \subseteq Q2)
-MaxConsistent == Maximal({Q \in SUBSET visited : Consistent(Q)})
-
-Inv ==
-    \/  \A p,q \in MaxConsistent : msgs[<<p,q>>] = 0
-    \/  \E p \in MaxConsistent, q \in P \ MaxConsistent : r[<<p,q>>] > R[<<p,q>>]
-Inv_ == TypeOkay /\ Inv
+\* Inv ==
+\*     \/  \A p,q \in MaxConsistent : msgs[<<p,q>>] = 0
+\*     \/  \E p \in MaxConsistent, q \in P \ MaxConsistent : r[<<p,q>>] > R[<<p,q>>]
+\* Inv_ == TypeOkay /\ Inv
 
 =============================================================================
 \* Modification History
