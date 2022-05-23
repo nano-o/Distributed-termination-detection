@@ -31,6 +31,7 @@ pb == "P2_OF_P"
 
 VARIABLES
     \* number of messages in flight for each pair:
+    \* NOTE we could eliminate this, as it's just s - r
     \* @type: <<P,P>> -> Int;
     msgs,
     \* s[p][q] is the number of messages sent by p to q as counted by p:
@@ -152,6 +153,11 @@ Spec == Init /\ [][Next]_vars
 \* Test invariants
 Test1 == \neg terminated
 
+\* let's keep thing small:
+Bounds ==
+  /\  \A pq \in AllPairs : s[pq] <= 1
+  /\  \A pq \in AllPairs : r[pq] <= 1
+
 \* Candidate invariants
 Inv1 == \A p \in P :
   /\  msgs[<<p,p>>] = 0
@@ -166,10 +172,17 @@ Inv4 == \A p \in visited : \A q \in P :
   /\  S[<<p,q>>] <= s[<<p,q>>]
   /\  R[<<p,q>>] <= r[<<p,q>>]
 Inv4_ == TypeOkay /\ Inv4
-Inv5 == \A p \in P : \A q \in P :
-  (s[<<p,q>>] > S[<<p,q>>] /\  p \in visited) => \E q2 \in P : r[<<p,q2>>] > R[<<p,q2>>]
-Inv5_ == TypeOkay /\ Inv1 /\ Inv2 /\ Inv3 /\ Inv4 /\ Inv5
-\* TODO: strengthen Inv5 to take counts into account
+\* @type: (P, <<P,P>> -> Int, <<P,P>> -> Int) => Int;
+NumNew(p, count, oldCount) ==
+  LET
+    \* @type: (Int, P) => Int;
+    Step(n, q) == n + count[<<p,q>>] - oldCount[<<p,q>>]
+  IN
+    ApaFoldSet(Step, 0, P)
+NumNewSent(p) == NumNew(p, s, S)
+NumNewReceived(p) == NumNew(p, r, R)
+Inv5 == \A p \in visited : NumNewSent(p) <= NumNewReceived(p)
+Inv5_ == TypeOkay /\ Bounds /\ Inv1 /\ Inv2 /\ Inv3 /\ Inv4 /\ Inv5
 
 \* Now the main invariant
 
