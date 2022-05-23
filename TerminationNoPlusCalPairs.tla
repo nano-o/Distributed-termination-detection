@@ -51,8 +51,6 @@ VARIABLES
     \* terminated is set to TRUE when the daemon terminates
     \* @type: Bool;
     terminated,
-    \* @type: Set(Set(P));
-    debug,
     \* @type: Bool;
     step
 
@@ -71,7 +69,6 @@ Init ==
     /\ R = [pq \in AllPairs |-> 0]
     /\ visited = {}
     /\ terminated = FALSE
-    /\ debug = {}
     /\ step = FALSE
 
 TypeOkay ==
@@ -87,7 +84,6 @@ TypeOkay ==
   /\  \A pq \in AllPairs : R[pq] >= 0
   /\  visited \in SUBSET P
   /\  terminated \in BOOLEAN
-  /\  debug \in SUBSET (SUBSET P)
   /\  step \in BOOLEAN
 
 (***************************************************************************)
@@ -114,7 +110,7 @@ process(self) ==
       /\ \E Q \in SUBSET (P \ {self}):
            /\ msgs' = [SendTo(Q, self, msgs) EXCEPT ![<<p,self>>] = @-1]
            /\ s' = SendTo(Q, self, s)
- /\ UNCHANGED << S, R, visited, terminated, debug, step >>
+ /\ UNCHANGED << S, R, visited, terminated, step >>
 
 \* @type: (P, <<P,P>> -> Int, <<P,P>> -> Int) => <<P,P>> -> Int;
 UpdateCount(p, processCount, daemonCount) ==
@@ -140,18 +136,16 @@ daemon ==
                         /\ S' = UpdateCount(p, s, S)
                         /\ R' = UpdateCount(p, r, R)
                         /\ visited' = (visited \union {p})
-                        (* /\ debug' = [Q \in SUBSET P |-> Consistent(Q)] *)
-                        /\ debug' = {Q \in SUBSET P : Consistent(Q)}
                         /\ UNCHANGED terminated
               ELSE /\ terminated' = TRUE
-                   /\ UNCHANGED << S, R, visited, debug >>
+                   /\ UNCHANGED << S, R, visited >>
         /\ UNCHANGED << msgs, s, r, step >>
 
 Next == daemon
            \/ (\E self \in P : process(self))
 
 
-vars == << msgs, s, r, S, R, visited, terminated, debug >>
+vars == << msgs, s, r, S, R, visited, terminated >>
 Next_ == UNCHANGED vars /\ step' = TRUE
 Spec == Init /\ [][Next]_vars
 
