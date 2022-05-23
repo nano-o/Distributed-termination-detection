@@ -21,8 +21,6 @@
 
 EXTENDS Integers, FiniteSets, Apalache, Sequences
 
-\* @type: DAEMON;
-d == "DAEMON_OF_DAEMON"
 \* @type: Set(P);
 P == {"P1_OF_P", "P2_OF_P", "P3_OF_P"}
 \* @type: P;
@@ -75,7 +73,10 @@ TypeOkay ==
   /\  visited \in SUBSET P
   /\  terminated \in BOOLEAN
 
-\* send one message to each member of Q
+(***************************************************************************)
+(* Compute the new msgs corresponding to sending one message to each       *)
+(* member of Q                                                             *)
+(***************************************************************************)
 \* @type: (Set(P), P, P -> P -> Int) => P -> P -> Int;
 SendTo(Q, p, msgs_) ==
   LET
@@ -100,7 +101,7 @@ process(self) ==
 
 (***************************************************************************)
 (* While the daemon has not visited all processes, or it has but there is  *)
-(* a pair whose message counts did not match at the time of the visit,     *)
+(* a pair whose message counts, as recorded by the daemon, do not match,   *)
 (* visit a new process                                                     *)
 (***************************************************************************)
 daemon ==
@@ -140,5 +141,5 @@ Inv3 ==
 
 =============================================================================
 \* Modification History
-\* Last modified Sun May 22 21:23:23 PDT 2022 by nano
+\* Last modified Sun May 22 21:39:34 PDT 2022 by nano
 \* Created Sun May 22 18:34:58 PDT 2022 by nano
