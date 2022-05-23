@@ -169,6 +169,7 @@ Inv4_ == TypeOkay /\ Inv4
 Inv5 == \A p \in P : \A q \in P :
   (s[<<p,q>>] > S[<<p,q>>] /\  p \in visited) => \E q2 \in P : r[<<p,q2>>] > R[<<p,q2>>]
 Inv5_ == TypeOkay /\ Inv1 /\ Inv2 /\ Inv3 /\ Inv4 /\ Inv5
+\* TODO: strengthen Inv5 to take counts into account
 
 \* Now the main invariant
 
