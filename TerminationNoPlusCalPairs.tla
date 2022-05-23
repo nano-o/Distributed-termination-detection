@@ -1,4 +1,4 @@
------------------------- MODULE TerminationNoPlusCal ------------------------
+------------------------ MODULE TerminationNoPlusCalPairs ------------------------
 
 (***************************************************************************)
 (* Distributed termination detection of a message-driven computation.  A   *)
@@ -22,6 +22,7 @@
 EXTENDS Integers, FiniteSets, Apalache, Sequences
 
 \* @type: Set(P);
+(* P == {"P1_OF_P", "P2_OF_P"} *)
 P == {"P1_OF_P", "P2_OF_P", "P3_OF_P"}
 \* @type: P;
 pa == "P1_OF_P"
@@ -69,10 +70,15 @@ Init ==
 
 TypeOkay ==
   /\  msgs \in [AllPairs -> Int]
+  /\  \A pq \in AllPairs : msgs[pq] >= 0
   /\  s \in [AllPairs -> Int]
+  /\  \A pq \in AllPairs : s[pq] >= 0
   /\  r \in [AllPairs -> Int]
+  /\  \A pq \in AllPairs : r[pq] >= 0
   /\  S \in [AllPairs -> Int]
+  /\  \A pq \in AllPairs : S[pq] >= 0
   /\  R \in [AllPairs -> Int]
+  /\  \A pq \in AllPairs : R[pq] >= 0
   /\  visited \in SUBSET P
   /\  terminated \in BOOLEAN
 
@@ -137,18 +143,41 @@ Spec == Init /\ [][Next]_vars
 Test1 == \neg terminated
 
 \* Candidate invariants
-Inv1 == \A p \in P : msgs[<<p,p>>] = 0
+Inv1 == \A p \in P :
+  /\  msgs[<<p,p>>] = 0
+  /\  s[<<p,p>>] = 0 /\  r[<<p,p>>] = 0
+  /\  R[<<p,p>>] = 0 /\  S[<<p,p>>] = 0
+Inv1_ == TypeOkay /\ Inv1
 Inv2 == \A p,q \in P : s[<<p, q>>] - r[<<q,p>>] = msgs[<<p,q>>]
+Inv2_ == TypeOkay /\ Inv2
+Inv3 == \A p \in P \ visited : \A q \in P : R[<<p,q>>] = 0 /\ S[<<p,q>>] = 0
+Inv3_ == TypeOkay /\ Inv3
+Inv4 == \A p \in visited : \A q \in P :
+  /\  S[<<p,q>>] <= s[<<p,q>>]
+  /\  R[<<p,q>>] <= r[<<p,q>>]
+Inv4_ == TypeOkay /\ Inv4
+Inv5 == \A p \in P : \A q \in P :
+  (s[<<p,q>>] > S[<<p,q>>] /\  p \in visited) => \E q2 \in P : r[<<p,q2>>] > R[<<p,q2>>]
+Inv5_ == TypeOkay /\ Inv1 /\ Inv2 /\ Inv3 /\ Inv4 /\ Inv5
 
 \* Now the main invariant
 
 Consistent(Q) == \A q1,q2 \in Q : q1 # q2 => S[<<q1,q2>>] = R[<<q2,q1>>]
+
+MainInv == visited # {} => \A Q \in SUBSET P : Consistent(Q) =>
+    \/  \A p,q \in Q : msgs[<<p,q>>] = 0
+    \/  \E p \in Q, q \in P \ Q : r[<<p,q>>] > R[<<p,q>>]
+MainInv_ == TypeOkay /\ Inv1 /\ Inv2 /\ Inv3 /\ Inv4 /\ Inv5 /\ MainInv
+
+View == [Q \in SUBSET P |-> Consistent(Q)]
+
 Maximal(Qs) == CHOOSE Q \in Qs : \A Q2 \in Qs : Q # Q2 => \neg (Q \subseteq Q2)
 MaxConsistent == Maximal({Q \in SUBSET visited : Consistent(Q)})
 
-Inv3 ==
+Inv ==
     \/  \A p,q \in MaxConsistent : msgs[<<p,q>>] = 0
     \/  \E p \in MaxConsistent, q \in P \ MaxConsistent : r[<<p,q>>] > R[<<p,q>>]
+Inv_ == TypeOkay /\ Inv
 
 =============================================================================
 \* Modification History
