@@ -172,24 +172,32 @@ Inv4 == \A p \in visited : \A q \in P :
   /\  S[<<p,q>>] <= s[<<p,q>>]
   /\  R[<<p,q>>] <= r[<<p,q>>]
 Inv4_ == TypeOkay /\ Inv4
-\* @type: (P, <<P,P>> -> Int, <<P,P>> -> Int) => Int;
-NumNew(p, count, oldCount) ==
+\* @type: (P) => Int;
+NumNewReceived(p) ==
   LET
     \* @type: (Int, P) => Int;
-    Step(n, q) == n + count[<<p,q>>] - oldCount[<<p,q>>]
+    Step(n, q) == n + r[<<p,q>>] - R[<<p,q>>]
   IN
     ApaFoldSet(Step, 0, P)
-NumNewSent(p) == NumNew(p, s, S)
-NumNewReceived(p) == NumNew(p, r, R)
-Inv5 == \A p \in visited : NumNewSent(p) <= NumNewReceived(p)
-Inv5_ == TypeOkay /\ Bounds /\ Inv1 /\ Inv2 /\ Inv3 /\ Inv4 /\ Inv5
+\* @type: (P) => Int;
+MaxNewSent(p) ==
+  LET
+    \* @type: (Int, P) => Int;
+    Step(n, q) ==
+      LET newSent == s[<<p,q>>] - S[<<p,q>>]
+      IN IF n >= newSent THEN n ELSE newSent
+  IN
+    ApaFoldSet(Step, 0, P)
+Inv5 == \A p \in visited : MaxNewSent(p) <= NumNewReceived(p)
+Inv5_ == TypeOkay /\ Inv1 /\ Inv2 /\ Inv3 /\ Inv4 /\ Inv5
+\* TODO: generalize Inv5 to sets?
 
 \* Now the main invariant
 
 MainInv == visited # {} => \A Q \in SUBSET P : Consistent(Q) =>
     \/  \A p,q \in Q : msgs[<<p,q>>] = 0
     \/  \E p \in Q, q \in P \ Q : r[<<p,q>>] > R[<<p,q>>]
-MainInv_ == TypeOkay /\ Inv1 /\ Inv2 /\ Inv3 /\ Inv4 /\ Inv5 /\ MainInv
+MainInv_ == TypeOkay /\ Bounds /\ Inv1 /\ Inv2 /\ Inv3 /\ Inv4 /\ Inv5 /\ MainInv
 
 \* Maximal(Qs) == CHOOSE Q \in Qs : \A Q2 \in Qs : Q # Q2 => \neg (Q \subseteq Q2)
 \* MaxConsistent == Maximal({Q \in SUBSET visited : Consistent(Q)})
