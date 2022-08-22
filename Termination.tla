@@ -47,10 +47,11 @@
 EXTENDS Integers, FiniteSets, Apalache, Sequences
 
 \* @type: Set(P);
-P == {"P1_OF_P", "P2_OF_P", "P3_OF_P"}
-\* P == {"P1_OF_P", "P2_OF_P", "P3_OF_P", "P4_OF_P"}
+\* P == {"P1_OF_P", "P2_OF_P", "P3_OF_P"}
+P == {"P1_OF_P", "P2_OF_P", "P3_OF_P", "P4_OF_P"}
 \* P == {"P1_OF_P", "P2_OF_P", "P3_OF_P", "P4_OF_P", "P5_OF_P"}
 
+\* Initially, we'll have a message from pa to pb
 \* @type: P;
 pa == "P1_OF_P"
 \* @type: P;
@@ -74,9 +75,7 @@ VARIABLES
     visited,
     \* terminated is set to TRUE when the daemon terminates
     \* @type: Bool;
-    terminated,
-    \* @type: Bool;
-    step
+    terminated
 
 \* The number of messages in flight from p to q:
 \* @type: (<<P,P>>) => Int;
@@ -103,7 +102,6 @@ Init ==
     /\ R = [pq \in AllPairs |-> 0]
     /\ visited = {}
     /\ terminated = FALSE
-    /\ step = FALSE
 
 TypeOkay ==
   /\  s \in [AllPairs -> Int]
@@ -116,7 +114,6 @@ TypeOkay ==
   /\  \A pq \in AllPairs : R[pq] >= 0
   /\  visited \in SUBSET P
   /\  terminated \in BOOLEAN
-  /\  step \in BOOLEAN
 
 (***************************************************************************)
 (* Compute the new count corresponding to sending one message to each      *)
@@ -141,7 +138,7 @@ process(self) ==
       /\ r' = [r EXCEPT ![<<self,p>>] =  @ + 1]
       /\ \E Q \in SUBSET (P \ {self}):
            /\ s' = SendToFrom(Q, self)
- /\ UNCHANGED << S, R, visited, terminated, step >>
+ /\ UNCHANGED << S, R, visited, terminated >>
 
 \* @type: (P, <<P,P>> -> Int, <<P,P>> -> Int) => <<P,P>> -> Int;
 UpdateCount(p, processCount, daemonCount) ==
@@ -171,13 +168,12 @@ daemon ==
                         /\ UNCHANGED terminated
               ELSE /\ terminated' = TRUE
                    /\ UNCHANGED << S, R, visited >>
-        /\ UNCHANGED << s, r, step >>
+        /\ UNCHANGED << s, r >>
 
 Next == daemon
            \/ (\E self \in P : process(self))
 
 vars == << s, r, S, R, visited, terminated >>
-Next_ == UNCHANGED vars /\ step' = TRUE
 Spec == Init /\ [][Next]_vars
 
 \* Test invariants
