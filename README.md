@@ -8,16 +8,21 @@ noting how many messages the node has sent to each other node, and how many it
 has received from each other node.  When the daemon sees that all numbers
 match, it declares that the system has terminated.
 
-This is the Channel Counting Algorithm described in: Mattern, Friedemann.
-*Algorithms for distributed termination detection.* Distributed computing 2.3
-(1987): 161-175.  The first version of this algorithm seems to be found in:
-Kumar, Devendra.  *A class of termination detection algorithms for distributed
-computations.* International Conference on Foundations of Software Technology
-and Theoretical Computer Science.  Springer, Berlin, Heidelberg, 1985.
+This is the algorithm described in Section 4 of: Kumar, Devendra.  *A class of
+termination detection algorithms for distributed computations.* International
+Conference on Foundations of Software Technology and Theoretical Computer
+Science.  Springer, Berlin, Heidelberg, 1985.
 
-The original proof is quite mind-bending, but `Termination.tla` shows that
-there is a relatively simple inductive invariant that proves the correctness of
-the algorithm. So this kind of a proof pearl.
+The algorithm can also be found in : Mattern, Friedemann. *Algorithms for
+distributed termination detection.* Distributed computing 2.3 (1987): 161-175.
+In this paper, the algorithm is called the Channel Counting Algorithm and is
+described in Section 7.
+
+The original, operational proof is a little mind-bending (the principle is
+illustrated in Figure 8, Section 6, of *Algorithms for distributed termination
+detection.*). Instead, `Termination.tla` shows that there is a relatively
+simple inductive invariant that proves the correctness of the algorithm. So
+this kind of a proof pearl.
 
 `Termination.tla` contains both the specification of the algorithm and an
 inductive invariant that proves safety.
