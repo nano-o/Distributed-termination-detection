@@ -149,10 +149,6 @@ UpdateCount(p, processCount, daemonCount) ==
     \* For each q in P, update the count
     ApaFoldSet(Update, daemonCount, P)
 
-Consistent(Q) ==
-  /\ Q \subseteq visited
-  /\ \A q1,q2 \in Q : S[<<q1,q2>>] = R[<<q2,q1>>]
-
 (***************************************************************************)
 (* While the daemon has not visited all processes, or it has but there is  *)
 (* a pair whose message counts, as recorded by the daemon, do not match,   *)
@@ -179,6 +175,11 @@ Spec == Init /\ [][Next]_vars
 \* Test invariants
 Test1 == \neg terminated
 
+\* To keep counter-examples small, if needed:
+Bounds ==
+  /\  \A pq \in AllPairs : s[pq] <= 1
+  /\  \A pq \in AllPairs : r[pq] <= 1
+
 \* Candidate invariants
 
 \* Daemon counts are zero for unvisited processes:
@@ -195,10 +196,9 @@ Inv2_ == TypeOkay /\ Inv2
 Inv3 == \A p,q \in P : r[<<p,q>>] <= s[<<q,p>>]
 Inv3_ == TypeOkay /\ Inv3
 
-\* To keep counter-examples small, if needed:
-Bounds ==
-  /\  \A pq \in AllPairs : s[pq] <= 1
-  /\  \A pq \in AllPairs : r[pq] <= 1
+Consistent(Q) ==
+  /\ Q \subseteq visited
+  /\ \A q1,q2 \in Q : S[<<q1,q2>>] = R[<<q2,q1>>]
 
 \* If Q is consistent and a member of Q has received or sent more than what the daemon saw,
 \* then a message from outside Q has been received:
