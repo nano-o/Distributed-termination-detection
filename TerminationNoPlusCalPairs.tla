@@ -17,15 +17,22 @@
 (* termination detection algorithms for distributed computations."         *)
 (* International Conference on Foundations of Software Technology and      *)
 (* Theoretical Computer Science.  Springer, Berlin, Heidelberg, 1985.      *)
+(*                                                                         *)
+(* This file contains both the specification of the algorithm and an       *)
+(* inductive invariant that proves safety.                                 *)
+(*                                                                         *)
+(* This specification is annotated for model-checking with Apalache, which *)
+(* is able to prove that the inductive invariant holds with 5 processes    *)
+(* and that it implies safety.                                             *)
 (***************************************************************************)
 
 EXTENDS Integers, FiniteSets, Apalache, Sequences
 
 \* @type: Set(P);
-(* P == {"P1_OF_P", "P2_OF_P"} *)
-(*P == {"P1_OF_P", "P2_OF_P", "P3_OF_P"}*)
-(*P == {"P1_OF_P", "P2_OF_P", "P3_OF_P", "P4_OF_P"}*)
-P == {"P1_OF_P", "P2_OF_P", "P3_OF_P", "P4_OF_P", "P5_OF_P"}
+P == {"P1_OF_P", "P2_OF_P", "P3_OF_P"}
+\* P == {"P1_OF_P", "P2_OF_P", "P3_OF_P", "P4_OF_P"}
+\* P == {"P1_OF_P", "P2_OF_P", "P3_OF_P", "P4_OF_P", "P5_OF_P"}
+
 \* @type: P;
 pa == "P1_OF_P"
 \* @type: P;
@@ -190,5 +197,5 @@ Correctness_ == TypeOkay /\ Inv1 /\ Inv2 /\ Inv3 /\ Inv4 /\ Correctness
 
 =============================================================================
 \* Modification History
-\* Last modified Sun Aug 21 15:57:30 PDT 2022 by nano
+\* Last modified Sun Aug 21 21:05:53 PDT 2022 by nano
 \* Created Sun May 22 18:34:58 PDT 2022 by nano
