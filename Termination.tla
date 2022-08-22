@@ -1,4 +1,4 @@
------------------------- MODULE TerminationNoPlusCalPairs ------------------------
+------------------------ MODULE Termination ------------------------
 
 (***************************************************************************)
 (* Distributed termination detection of a message-driven computation.  A   *)
@@ -24,6 +24,13 @@
 (* This specification is annotated for model-checking with Apalache, which *)
 (* is able to prove that the inductive invariant holds with 5 processes    *)
 (* and that it implies safety.                                             *)
+(*                                                                         *)
+(* By convention, an invariant of the form InvN (e.g.  Inv1) is inductive  *)
+(* relative to InvN_ (e.g.  Inv1_).  So, to check that Inv1_ is inductive  *)
+(* with Apalache, run:                                                     *)
+(*                                                                         *)
+(*     $APALACHE_HOME/script/run-docker.sh check --init=Inv1_ --inv=Inv1 --length=1 Termination.tla *)
+(*                                                                         *)
 (***************************************************************************)
 
 EXTENDS Integers, FiniteSets, Apalache, Sequences
@@ -197,5 +204,5 @@ Correctness_ == TypeOkay /\ Inv1 /\ Inv2 /\ Inv3 /\ Inv4 /\ Correctness
 
 =============================================================================
 \* Modification History
-\* Last modified Sun Aug 21 21:05:53 PDT 2022 by nano
+\* Last modified Sun Aug 21 21:14:40 PDT 2022 by nano
 \* Created Sun May 22 18:34:58 PDT 2022 by nano
