@@ -1,4 +1,4 @@
----------------------------- MODULE Termination ---------------------------
+------------------------ MODULE TerminationNoPlusCalPairs ------------------------
 
 (***************************************************************************)
 (* Distributed termination detection of a message-driven computation.  A   *)
@@ -17,150 +17,185 @@
 (* termination detection algorithms for distributed computations."         *)
 (* International Conference on Foundations of Software Technology and      *)
 (* Theoretical Computer Science.  Springer, Berlin, Heidelberg, 1985.      *)
+(*                                                                         *)
+(* This file contains both the specification of the algorithm and an       *)
+(* inductive invariant that proves safety.                                 *)
+(*                                                                         *)
+(* This specification is annotated for model-checking with Apalache, which *)
+(* is able to prove that the inductive invariant holds with 5 processes    *)
+(* and that it implies safety.                                             *)
 (***************************************************************************)
 
-\* Bags are multi-sets.
-EXTENDS Bags, Naturals, FiniteSets, TLC
+EXTENDS Integers, FiniteSets, Apalache, Sequences
 
-\* P is the set of process indentifiers, d is the identifier of the termination daemon.
-CONSTANTS P, d
-\* Initially, there will a single message from pa to pb.
-pa == CHOOSE p \in P : TRUE
-pb == CHOOSE p \in P : p # pa
+\* @type: Set(P);
+P == {"P1_OF_P", "P2_OF_P", "P3_OF_P"}
+\* P == {"P1_OF_P", "P2_OF_P", "P3_OF_P", "P4_OF_P"}
+\* P == {"P1_OF_P", "P2_OF_P", "P3_OF_P", "P4_OF_P", "P5_OF_P"}
 
-(*
---algorithm MessageDrivenTermination {
-    variables
-        \* the state of the network. Messages are of the form <<sender, destination>>
-        msgs = SetToBag({<<pa,pb>>});
-        \* s[p][q] is the number of messages sent from p to q
-        s = [p \in P |-> [q \in P |-> IF <<p,q>> = <<pa,pb>> THEN 1 ELSE 0]];
-        \* r[p][q] is the number of messages received by p from q
-        r = [p \in P |-> [q \in P |-> 0]];
-        \* The numbers recorded by the daemon:
-        S = [p \in P |-> [q \in P |-> 0]];
-        R = [p \in P |-> [q \in P |-> 0]];
-        \* the set of nodes that the daemon has visited:
-        visited = {};
-        \* total number of messages ever sent. This is a ghost variable used to limit state-exploration by TLC:
-        total = 1;
-    define {
-        Consistent(Q) == \A q1,q2 \in Q : q1 # q2 => S[q1][q2] = R[q2][q1]
-        Maximal(Qs) == CHOOSE Q \in Qs : \A Q2 \in Qs : Q # Q2 => \neg (Q \subseteq Q2)
-        \* The largets set of nodes whose numbers match according to what the daemon saw:
-        MaxConsistent == Maximal({Q \in SUBSET visited : Consistent(Q)})
+\* @type: P;
+pa == "P1_OF_P"
+\* @type: P;
+pb == "P2_OF_P"
+
+VARIABLES
+    \* s[<<p,q>>] is the number of messages sent by p to q as counted by p:
+    \* @type: <<P,P>> -> Int;
+    s,
+    \* r[<<p,q>>] is the number of messages received by p from q as counted by p
+    \* @type: <<P,P>> -> Int;
+    r,
+    \* S[<<p,q>>] is the number of messages sent by p to q as recorded by the daemon in its last visit to p:
+    \* @type: <<P,P>> -> Int;
+    S,
+    \* R[<<p,q>>] is the number of messages received by p from q as recorded by the daemon in its last visit to p:
+    \* @type: <<P,P>> -> Int;
+    R,
+    \* visited is the set of processes that the daemon visited so far:
+    \* @type: Set(P);
+    visited,
+    \* terminated is set to TRUE when the daemon terminates
+    \* @type: Bool;
+    terminated,
+    \* @type: Bool;
+    step
+
+\* The number of messages in flight from p to q:
+\* @type: (<<P,P>>) => Int;
+Msgs(pq) ==
+  LET
+    \* @type: P;
+    p == pq[1]
+    \* @type: P;
+    q == pq[2]
+  IN
+    s[<<p,q>>] - r[<<q, p>>]
+
+\* The correstness property: when the daemon terminates, there are no messages in flight (i.e. the distributed computation is finished):
+Correctness == terminated => \A p,q \in P : Msgs(<<p,q>>) = 0
+
+\* @type: Set(<<P,P>>);
+AllPairs == {<<p,q>> : p \in P, q \in P}
+
+Init ==
+    /\ s = [pq \in AllPairs |->
+        IF pq[1] = pa /\ pq[2] = pb THEN 1 ELSE 0]
+    /\ r = [pq \in AllPairs |-> 0]
+    /\ S = [pq \in AllPairs |-> 0]
+    /\ R = [pq \in AllPairs |-> 0]
+    /\ visited = {}
+    /\ terminated = FALSE
+    /\ step = FALSE
+
+TypeOkay ==
+  /\  s \in [AllPairs -> Int]
+  /\  \A pq \in AllPairs : s[pq] >= 0
+  /\  r \in [AllPairs -> Int]
+  /\  \A pq \in AllPairs : r[pq] >= 0
+  /\  S \in [AllPairs -> Int]
+  /\  \A pq \in AllPairs : S[pq] >= 0
+  /\  R \in [AllPairs -> Int]
+  /\  \A pq \in AllPairs : R[pq] >= 0
+  /\  visited \in SUBSET P
+  /\  terminated \in BOOLEAN
+  /\  step \in BOOLEAN
+
 (***************************************************************************)
-(*         The correctness condition:                                      *)
+(* Compute the new count corresponding to sending one message to each      *)
+(* member of Q                                                             *)
 (***************************************************************************)
-        Correctness == pc[d] = "Done" => msgs = EmptyBag  
+\* @type: (Set(P), P) => <<P,P>> -> Int;
+SendToFrom(Q, p) ==
+  LET
+    \* @type: (<<P,P>> -> Int, P) => <<P,P>> -> Int;
+    Send(s_, q) == [s_ EXCEPT ![<<p,q>>] = @+1]
+  IN
+    ApaFoldSet(Send, s, Q)
+
+
 (***************************************************************************)
-(*         Candidate inductive invariant:                                  *)
+(* Receive a message and, in response, pick a set Q of processes and send  *)
+(* one new message to each.                                                *)
 (***************************************************************************)
-        Inv1 == \A p \in P : <<p,p>> \notin BagToSet(msgs)
-        Inv2 == pc[d] = "Done" => MaxConsistent = P
-        Inv3 ==
-            \/  \A p,q \in MaxConsistent : <<p,q>> \notin BagToSet(msgs)
-            \/  \E p \in MaxConsistent, q \in P \ MaxConsistent : r[p][q] > R[p][q]
-        Inv4 == \A p,q \in P : s[p][q] - r[q][p] = CopiesIn(<<p,q>>, msgs)
-    }
-    process (node \in P) {
-        sendRcv:    with (m \in BagToSet(msgs)) {
-                    when (m[2] = self);
-                    r[self] := [r[self] EXCEPT ![m[1]] = @ + 1];
-                    with (Q \in SUBSET (P \ {self})) {
-                        msgs := (msgs (-) SetToBag({m})) (+) SetToBag({<<self,p>> : p \in Q});
-                        s[self] := [p \in P |-> IF p \in Q THEN @[p]+1 ELSE @[p]];
-                        total := total + Cardinality(Q) \* ghost update 
-                    }
-                };
-                goto sendRcv
-    }
-    process (daemon = d) {
-        loop:   while (visited # P \/ \E p,q \in visited : p # q /\ S[p][q] # R[q][p]) {
-                    with (p \in P) {
-                        S[p] := s[p]; 
-                        R[p] := r[p];
-                        visited := visited \union {p}
-                    }
-                }
-    }
-}
-*)
-\* BEGIN TRANSLATION
-VARIABLES msgs, s, r, S, R, visited, total, pc
+process(self) ==
+  /\ \E p \in P \ {self} :
+      /\ Msgs(<<p,self>>) > 0
+      /\ r' = [r EXCEPT ![<<self,p>>] =  @ + 1]
+      /\ \E Q \in SUBSET (P \ {self}):
+           /\ s' = SendToFrom(Q, self)
+ /\ UNCHANGED << S, R, visited, terminated, step >>
 
-(* define statement *)
-Consistent(Q) == \A q1,q2 \in Q : q1 # q2 => S[q1][q2] = R[q2][q1]
-Maximal(Qs) == CHOOSE Q \in Qs : \A Q2 \in Qs : Q # Q2 => \neg (Q \subseteq Q2)
+\* @type: (P, <<P,P>> -> Int, <<P,P>> -> Int) => <<P,P>> -> Int;
+UpdateCount(p, processCount, daemonCount) ==
+  LET
+    \* @type: (<<P,P>> -> Int, P) => <<P,P>> -> Int;
+    Update(count_, q) == [count_ EXCEPT ![<<p,q>>] = processCount[<<p,q>>]]
+  IN
+    \* For each q in P, update the count
+    ApaFoldSet(Update, daemonCount, P)
 
-MaxConsistent == Maximal({Q \in SUBSET visited : Consistent(Q)})
+Consistent(Q) ==
+  /\ Q \subseteq visited
+  /\ \A q1,q2 \in Q : S[<<q1,q2>>] = R[<<q2,q1>>]
 
-
-
-Correctness == pc[d] = "Done" => msgs = EmptyBag
-
-
-
-Inv1 == \A p \in P : <<p,p>> \notin BagToSet(msgs)
-Inv2 == pc[d] = "Done" => MaxConsistent = P
-Inv3 ==
-    \/  \A p,q \in MaxConsistent : <<p,q>> \notin BagToSet(msgs)
-    \/  \E p \in MaxConsistent, q \in P \ MaxConsistent : r[p][q] > R[p][q]
-Inv4 == \A p,q \in P : s[p][q] - r[q][p] = CopiesIn(<<p,q>>, msgs)
-
-
-vars == << msgs, s, r, S, R, visited, total, pc >>
-
-ProcSet == (P) \cup {d}
-
-Init == (* Global variables *)
-        /\ msgs = SetToBag({<<pa,pb>>})
-        /\ s = [p \in P |-> [q \in P |-> IF <<p,q>> = <<pa,pb>> THEN 1 ELSE 0]]
-        /\ r = [p \in P |-> [q \in P |-> 0]]
-        /\ S = [p \in P |-> [q \in P |-> 0]]
-        /\ R = [p \in P |-> [q \in P |-> 0]]
-        /\ visited = {}
-        /\ total = 1
-        /\ pc = [self \in ProcSet |-> CASE self \in P -> "sendRcv"
-                                        [] self = d -> "loop"]
-
-sendRcv(self) == /\ pc[self] = "sendRcv"
-                 /\ \E m \in BagToSet(msgs):
-                      /\ (m[2] = self)
-                      /\ r' = [r EXCEPT ![self] = [r[self] EXCEPT ![m[1]] = @ + 1]]
-                      /\ \E Q \in SUBSET (P \ {self}):
-                           /\ msgs' = (msgs (-) SetToBag({m})) (+) SetToBag({<<self,p>> : p \in Q})
-                           /\ s' = [s EXCEPT ![self] = [p \in P |-> IF p \in Q THEN @[p]+1 ELSE @[p]]]
-                           /\ total' = total + Cardinality(Q)
-                 /\ pc' = [pc EXCEPT ![self] = "sendRcv"]
-                 /\ UNCHANGED << S, R, visited >>
-
-node(self) == sendRcv(self)
-
-loop == /\ pc[d] = "loop"
-        /\ IF visited # P \/ \E p,q \in visited : p # q /\ S[p][q] # R[q][p]
+(***************************************************************************)
+(* While the daemon has not visited all processes, or it has but there is  *)
+(* a pair whose message counts, as recorded by the daemon, do not match,   *)
+(* visit a new process                                                     *)
+(***************************************************************************)
+daemon ==
+        /\ \neg terminated
+        /\ IF visited # P \/ \E p,q \in visited : S[<<p,q>>] # R[<<q,p>>]
               THEN /\ \E p \in P:
-                        /\ S' = [S EXCEPT ![p] = s[p]]
-                        /\ R' = [R EXCEPT ![p] = r[p]]
+                        /\ S' = UpdateCount(p, s, S)
+                        /\ R' = UpdateCount(p, r, R)
                         /\ visited' = (visited \union {p})
-                   /\ pc' = [pc EXCEPT ![d] = "loop"]
-              ELSE /\ pc' = [pc EXCEPT ![d] = "Done"]
+                        /\ UNCHANGED terminated
+              ELSE /\ terminated' = TRUE
                    /\ UNCHANGED << S, R, visited >>
-        /\ UNCHANGED << msgs, s, r, total >>
-
-daemon == loop
+        /\ UNCHANGED << s, r, step >>
 
 Next == daemon
-           \/ (\E self \in P: node(self))
-           \/ (* Disjunct to prevent deadlock on termination *)
-              ((\A self \in ProcSet: pc[self] = "Done") /\ UNCHANGED vars)
+           \/ (\E self \in P : process(self))
 
+vars == << s, r, S, R, visited, terminated >>
+Next_ == UNCHANGED vars /\ step' = TRUE
 Spec == Init /\ [][Next]_vars
 
-Termination == <>(\A self \in ProcSet: pc[self] = "Done")
+\* Test invariants
+Test1 == \neg terminated
 
-\* END TRANSLATION
+\* Candidate invariants
+
+\* Daemon counts are zero for unvisited processes:
+Inv1 == \A p \in P \ visited : \A q \in P : R[<<p,q>>] = 0 /\ S[<<p,q>>] = 0
+Inv1_ == TypeOkay /\ Inv1
+
+\* Daemon counts are necessarily smaller than real counts:
+Inv2 == \A p,q \in P :
+  /\  S[<<p,q>>] <= s[<<p,q>>]
+  /\  R[<<p,q>>] <= r[<<p,q>>]
+Inv2_ == TypeOkay /\ Inv2
+
+\* A process cannot receive more than has been sent to it:
+Inv3 == \A p,q \in P : r[<<p,q>>] <= s[<<q,p>>]
+Inv3_ == TypeOkay /\ Inv3
+
+\* To keep counter-examples small, if needed:
+Bounds ==
+  /\  \A pq \in AllPairs : s[pq] <= 1
+  /\  \A pq \in AllPairs : r[pq] <= 1
+
+\* If Q is consistent and a member of Q has received or sent more than what the daemon saw,
+\* then a message from outside Q has been received:
+Inv4 == \A Q \in SUBSET visited :
+  (Consistent(Q) /\ \E p \in Q, q \in P : (r[<<p,q>>] > R[<<p,q>>] \/ s[<<p,q>>] > S[<<p,q>>]))
+  => \E p \in Q, q \in P \ Q : r[<<p,q>>] > R[<<p,q>>]
+Inv4_ == TypeOkay /\ Inv1 /\ Inv2 /\ Inv3 /\ Inv4
+
+Correctness_ == TypeOkay /\ Inv1 /\ Inv2 /\ Inv3 /\ Inv4 /\ Correctness
+
 =============================================================================
 \* Modification History
-\* Last modified Mon Jul 09 11:28:45 PDT 2018 by nano
-\* Created Mon Mar 13 09:03:31 PDT 2017 by nano
+\* Last modified Sun Aug 21 21:05:53 PDT 2022 by nano
+\* Created Sun May 22 18:34:58 PDT 2022 by nano
