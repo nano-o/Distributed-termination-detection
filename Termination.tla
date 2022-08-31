@@ -201,13 +201,15 @@ Consistent(Q) ==
   /\ \A q1,q2 \in Q : S[<<q1,q2>>] = R[<<q2,q1>>]
 
 \* If Q is consistent and a member of Q has received or sent more than what the daemon saw,
-\* then a message from outside Q has been received:
+\* then a message from outside Q that the daemon has not seen has been received:
 Inv4 == \A Q \in SUBSET visited :
   (Consistent(Q) /\ \E p \in Q, q \in P : (r[<<p,q>>] > R[<<p,q>>] \/ s[<<p,q>>] > S[<<p,q>>]))
   => \E p \in Q, q \in P \ Q : r[<<p,q>>] > R[<<p,q>>]
 Inv4_ == TypeOkay /\ Inv1 /\ Inv2 /\ Inv3 /\ Inv4
 
 Correctness_ == TypeOkay /\ Inv1 /\ Inv2 /\ Inv3 /\ Inv4 /\ Correctness
+
+All == TypeOkay /\ Inv1 /\ Inv2 /\ Inv3 /\ Inv4 /\ Correctness
 
 =============================================================================
 \* Modification History
