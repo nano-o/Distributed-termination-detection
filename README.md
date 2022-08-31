@@ -28,18 +28,20 @@ this kind of a proof pearl.
 inductive invariant that proves safety.
 
 The specification is annotated for model-checking with Apalache, which is able
-to prove all the invariants inductive for 5 processes.
+to prove all the invariants inductive for 6 processes.
 
-By convention, an invariant of the form `InvN` (e.g. `Inv1`) is inductive
-relative to `InvN_` (e.g. `Inv1_`).  So, to check that `Inv1_` is inductive
-with Apalache, run:
-
-```
-$APALACHE_HOME/script/run-docker.sh check --init=Inv1_ --inv=Inv1 --length=1 Termination.tla
-```
-
-To check the main correctness property:
+By convention, an invariant of the form `Inv` (e.g. `Inv1`) is inductive
+relative to `Inv_` (e.g. `Inv1_`).  To check that `Inv1` is inductive
+relative to `Inv1_` with Apalache, run:
 
 ```
-$APALACHE_HOME/script/run-docker.sh check --init=Correctness_ --inv=Correctness --length=1 Termination.tla
+$APALACHE_HOME/script/run-docker.sh check --init=Inv1_ --inv=Inv1 --length=1 --discard-disabled=false Termination.tla
+```
+
+The predicate `All` is the conjuction of all the invariants (including the main correctness property).
+So, the fact that it's inductive proves that the main correctness property is an invariant of the protocol.
+To check this with Apalache, run:
+
+```
+$APALACHE_HOME/script/run-docker.sh check --init=All --inv=All --length=1 --discard-disabled=false Termination.tla
 ```

@@ -210,6 +210,7 @@ Inv4_ == TypeOkay /\ Inv1 /\ Inv2 /\ Inv3 /\ Inv4
 Correctness_ == TypeOkay /\ Inv1 /\ Inv2 /\ Inv3 /\ Inv4 /\ Correctness
 
 All == TypeOkay /\ Inv1 /\ Inv2 /\ Inv3 /\ Inv4 /\ Correctness
+All_ == All
 
 =============================================================================
 \* Modification History
