@@ -35,7 +35,7 @@ relative to `Inv_` (e.g. `Inv1_`).  To check that `Inv1` is inductive
 relative to `Inv1_` with Apalache, run:
 
 ```
-$APALACHE_HOME/script/run-docker.sh check --init=Inv1_ --inv=Inv1 --length=1 --discard-disabled=false Termination.tla
+$APALACHE_HOME/script/run-docker.sh check --init=Inv1_ --inv=Inv1 --length=1 Termination.tla
 ```
 
 The predicate `All` is the conjuction of all the invariants (including the main correctness property).
@@ -43,5 +43,5 @@ So, the fact that it's inductive proves that the main correctness property is an
 To check this with Apalache, run:
 
 ```
-$APALACHE_HOME/script/run-docker.sh check --init=All --inv=All --length=1 --discard-disabled=false Termination.tla
+$APALACHE_HOME/script/run-docker.sh check --init=All --inv=All --length=1 Termination.tla
 ```
