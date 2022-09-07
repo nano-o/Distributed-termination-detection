@@ -91,27 +91,24 @@ Msgs(pq) ==
 \* The correstness property: when the daemon terminates, there are no messages in flight (i.e. the distributed computation is finished):
 Correctness == terminated => \A p,q \in P : Msgs(<<p,q>>) = 0
 
-\* @type: Set(<<P,P>>);
-AllPairs == {<<p,q>> : p \in P, q \in P}
-
 Init ==
-    /\ s = [pq \in AllPairs |->
+    /\ s = [pq \in P\times P |->
         IF pq[1] = pa /\ pq[2] = pb THEN 1 ELSE 0]
-    /\ r = [pq \in AllPairs |-> 0]
-    /\ S = [pq \in AllPairs |-> 0]
-    /\ R = [pq \in AllPairs |-> 0]
+    /\ r = [pq \in P\times P |-> 0]
+    /\ S = [pq \in P\times P |-> 0]
+    /\ R = [pq \in P\times P |-> 0]
     /\ visited = {}
     /\ terminated = FALSE
 
 TypeOkay ==
-  /\  s \in [AllPairs -> Int]
-  /\  \A pq \in AllPairs : s[pq] >= 0
-  /\  r \in [AllPairs -> Int]
-  /\  \A pq \in AllPairs : r[pq] >= 0
-  /\  S \in [AllPairs -> Int]
-  /\  \A pq \in AllPairs : S[pq] >= 0
-  /\  R \in [AllPairs -> Int]
-  /\  \A pq \in AllPairs : R[pq] >= 0
+  /\  s \in [P\times P -> Int]
+  /\  \A pq \in P\times P : s[pq] >= 0
+  /\  r \in [P\times P -> Int]
+  /\  \A pq \in P\times P : r[pq] >= 0
+  /\  S \in [P\times P -> Int]
+  /\  \A pq \in P\times P : S[pq] >= 0
+  /\  R \in [P\times P -> Int]
+  /\  \A pq \in P\times P : R[pq] >= 0
   /\  visited \in SUBSET P
   /\  terminated \in BOOLEAN
 
@@ -177,8 +174,8 @@ Test1 == \neg terminated
 
 \* To keep counter-examples small, if needed:
 Bounds ==
-  /\  \A pq \in AllPairs : s[pq] <= 1
-  /\  \A pq \in AllPairs : r[pq] <= 1
+  /\  \A pq \in P\times P : s[pq] <= 1
+  /\  \A pq \in P\times P : r[pq] <= 1
 
 \* Candidate invariants
 
