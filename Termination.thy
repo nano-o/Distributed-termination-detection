@@ -110,6 +110,7 @@ proof -
 qed
 
 definition inv3 where
+  \<comment> \<open>A process can only receive what has been sent.\<close>
   "inv3 c \<equiv> \<forall> p q . (c\<cdot>r) p q \<le> (c\<cdot>s) q p"
 
 lemma inv3_step:
@@ -135,7 +136,7 @@ definition inv4 where
     \<longrightarrow> (\<exists> p \<in> Q . \<exists> q \<in> -Q . (c\<cdot>r) p q > (c\<cdot>R) p q)"
 
 lemma inv4_step:
-  assumes "step c c'" and "inv1 c" and "inv2_a c" and "inv2_b c" and "inv3 c" "inv4 c"
+  assumes "step c c'" and "inv1 c" and "inv2_a c" and "inv2_b c" and "inv3 c'" "inv4 c"
   shows "inv4 c'"
 proof -
   define stale where "stale c Q \<equiv> \<exists> p \<in> Q . \<exists> q . (c\<cdot>R) p q \<noteq> (c\<cdot>r) p q \<or> (c\<cdot>S) p q \<noteq> (c\<cdot>s) p q" for c Q
@@ -203,8 +204,8 @@ So, because we assume that the count of at least one process in Q changes, it mu
             proof -
               from \<open>p\<notin>Q\<close> have "consistent c Q" and "\<exists> p \<in> Q . \<exists> q . (c\<cdot>R) p q \<noteq> (c\<cdot>r) p q \<or> (c\<cdot>S) p q \<noteq> (c\<cdot>s) p q"
                 using \<open>daemon_step c c' p\<close> and \<open>consistent c' Q\<close>
-                  and \<open>\<exists> p \<in> Q . \<exists> q . (c'\<cdot>R) p q \<noteq> (c'\<cdot>r) p q \<or> (c'\<cdot>S) p q \<noteq> (c'\<cdot>s) p q\<close>
-                unfolding daemon_step_def consistent_def
+                  and \<open>stale c' Q\<close>
+                unfolding daemon_step_def consistent_def stale_def
                 by (force split:if_splits)+
               thus ?thesis using \<open>inv4 c\<close> unfolding inv4_def by auto 
             qed
@@ -212,19 +213,58 @@ So, because we assume that the count of at least one process in Q changes, it mu
               unfolding daemon_step_def by (auto split:if_splits) }
           moreover
           { assume "p \<in> Q"
-            have "(c'\<cdot>r) p = (c'\<cdot>R) p" and "(c'\<cdot>s) p = (c'\<cdot>S) p"
-              using \<open>daemon_step c c' p\<close> True unfolding daemon_step_def
-              by auto
             define Q' where "Q' \<equiv> Q - {p}"
-            have "consistent c Q'"
-              using \<open>daemon_step c c' p\<close> True \<open>consistent c' Q\<close>
-              unfolding daemon_step_def consistent_def Q'_def
-              by (auto; (smt (verit)))
-            have "stale c Q'"
-              using \<open>daemon_step c c' p\<close> True \<open>stale c' Q\<close>
-              unfolding daemon_step_def Q'_def stale_def
-              by (auto split:if_splits)
-            have ?thesis sorry }
+            obtain p' q where "p' \<in> Q'" and "q \<in> -Q'" and "(c'\<cdot>r) p' q > (c'\<cdot>R) p' q"
+            proof -
+              have "\<exists> p \<in> Q' . \<exists> q \<in> -Q' . (c'\<cdot>r) p q > (c'\<cdot>R) p q"
+              proof -
+                have "\<exists> p \<in> Q' . \<exists> q \<in> -Q' . (c\<cdot>r) p q > (c\<cdot>R) p q"
+                proof -
+                  have "consistent c Q'"
+                    using \<open>daemon_step c c' p\<close> True \<open>consistent c' Q\<close>
+                    unfolding daemon_step_def consistent_def Q'_def
+                    by (auto; (smt (verit)))
+                  moreover
+                  have "stale c Q'"
+                    using \<open>daemon_step c c' p\<close> True \<open>stale c' Q\<close>
+                    unfolding daemon_step_def Q'_def stale_def
+                    by (auto split:if_splits)
+                  ultimately
+                  show ?thesis
+                    using \<open>inv4 c\<close> unfolding inv4_def stale_def by auto
+                qed
+                thus ?thesis using \<open>daemon_step c c' p\<close> unfolding daemon_step_def Q'_def
+                  by (auto split:if_splits)
+              qed
+              thus ?thesis using that by auto
+            qed
+            moreover
+            have "q \<noteq> p"
+              \<comment> \<open>Now we have to show that @{term q} is not the @{term p} visited by the daemon.}\<close>
+            proof -
+              have "(c'\<cdot>R) p' p = (c'\<cdot>s) p p'"
+              proof -
+                have "(c'\<cdot>r) p = (c'\<cdot>R) p" and "(c'\<cdot>s) p = (c'\<cdot>S) p"
+                  using \<open>daemon_step c c' p\<close> True unfolding daemon_step_def
+                  by auto
+                moreover
+                have "(c'\<cdot>R) p' p = (c'\<cdot>S) p p'" using \<open>consistent c' Q\<close> \<open>p \<in> Q\<close> \<open>p' \<in> Q'\<close>
+                  unfolding consistent_def Q'_def
+                  by auto
+                ultimately show ?thesis by auto
+              qed
+              { assume "p = q"
+                hence "(c'\<cdot>r) p' p > (c'\<cdot>R) p' p" using \<open>(c'\<cdot>r) p' q > (c'\<cdot>R) p' q\<close> 
+                  by auto
+                hence "(c'\<cdot>r) p' p > (c'\<cdot>s) p p'" using \<open>(c'\<cdot>R) p' p = (c'\<cdot>s) p p'\<close>
+                  by auto
+                hence False using \<open>inv3 c'\<close> unfolding inv3_def
+                  by (simp add: leD) }
+              thus ?thesis by blast
+            qed
+            ultimately
+            have ?thesis using Q'_def by blast 
+            }
           ultimately show ?thesis by blast
         qed
       next
