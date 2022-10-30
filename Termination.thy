@@ -157,10 +157,6 @@ has received a message from outside Q that the daemon has not seen. This remains
         { assume "\<not>stale"
             \<comment> \<open>If Q is not stale in @{term c}, then no process in Q can receive a message from another process in Q (because all counts match).
 So, because we assume that the count of at least one process in Q changes, it must be by receiving a message from outside Q.}\<close>
-          hence "\<forall> p \<in> Q . \<forall> q \<in> Q . (c\<cdot>s) p q = (c\<cdot>r) q p"
-            using \<open>consistent c Q\<close> consistent_def stale_def by force
-          hence "\<forall> p \<in> Q . \<forall> q \<in> Q . (c\<cdot>r) p q = (c'\<cdot>r) p q"
-            using \<open>receive_step c c' p\<close> pending_def unfolding receive_step_def by auto
           obtain q where "p \<in> Q" and "(c'\<cdot>r) p q \<noteq> (c\<cdot>r) p q"
             using \<open>\<exists> p \<in> Q . \<exists> q . (c'\<cdot>R) p q \<noteq> (c'\<cdot>r) p q \<or> (c'\<cdot>S) p q \<noteq> (c'\<cdot>s) p q\<close>
               and \<open>receive_step c c' p\<close> and \<open>\<not>stale\<close>
@@ -168,15 +164,29 @@ So, because we assume that the count of at least one process in Q changes, it mu
             apply auto
              apply (smt (verit, best) n_not_Suc_n)+
             done
-          have "q \<notin> Q" using \<open>\<forall> p \<in> Q . \<forall> q \<in> Q . (c\<cdot>r) p q = (c'\<cdot>r) p q\<close> \<open>(c'\<cdot>r) p q \<noteq> (c\<cdot>r) p q\<close>  \<open>p \<in> Q\<close> by auto
+          moreover
+          have "q \<notin> Q"
+          proof -
+            have "\<forall> p \<in> Q . \<forall> q \<in> Q . (c\<cdot>r) p q = (c'\<cdot>r) p q"
+            proof -
+              from \<open>\<not>stale\<close> have "\<forall> p \<in> Q . \<forall> q \<in> Q . (c\<cdot>s) p q = (c\<cdot>r) q p"
+                using \<open>consistent c Q\<close> consistent_def stale_def by force
+              thus ?thesis
+                using \<open>receive_step c c' p\<close> pending_def unfolding receive_step_def by auto
+            qed
+            thus ?thesis
+              using \<open>(c'\<cdot>r) p q \<noteq> (c\<cdot>r) p q\<close>  \<open>p \<in> Q\<close> by auto
+          qed
+          moreover
           have "(c'\<cdot>r) p q > (c\<cdot>r) p q" using  \<open>(c'\<cdot>r) p q \<noteq> (c\<cdot>r) p q\<close> and \<open>receive_step c c' p\<close>
             unfolding receive_step_def by (auto split:if_splits)
+          moreover
           have "(c'\<cdot>R) p q = (c\<cdot>r) p q" using \<open>receive_step c c' p\<close> and \<open>\<not>stale\<close> and \<open>p \<in> Q\<close>
             unfolding receive_step_def stale_def by auto
-          have ?thesis using \<open>(c'\<cdot>R) p q = (c\<cdot>r) p q\<close> and \<open>(c'\<cdot>r) p q > (c\<cdot>r) p q\<close> and \<open>p \<in> Q\<close> and \<open>q \<notin> Q\<close>
-            by force }
+          ultimately
+          have ?thesis by force }
         ultimately show ?thesis by auto
-      qed  }
+      qed }
     thus ?thesis unfolding inv4_def by blast
   qed
   moreover
