@@ -194,7 +194,25 @@ So, because we assume that the count of at least one process in Q changes, it mu
   proof -
     { fix Q
       assume "consistent c' Q" and "\<exists> p \<in> Q . \<exists> q . (c'\<cdot>R) p q \<noteq> (c'\<cdot>r) p q \<or> (c'\<cdot>S) p q \<noteq> (c'\<cdot>s) p q"
-      have "\<exists> p \<in> Q . \<exists> q \<in> -Q . (c'\<cdot>r) p q > (c'\<cdot>R) p q" sorry }
+      have "\<exists> p \<in> Q . \<exists> q \<in> -Q . (c'\<cdot>r) p q > (c'\<cdot>R) p q"
+      proof -
+        { assume "p \<notin> Q"
+          have "\<exists> p \<in> Q . \<exists> q \<in> -Q . (c\<cdot>r) p q > (c\<cdot>R) p q"
+          proof -
+            from \<open>p\<notin>Q\<close> have "consistent c Q" and "\<exists> p \<in> Q . \<exists> q . (c\<cdot>R) p q \<noteq> (c\<cdot>r) p q \<or> (c\<cdot>S) p q \<noteq> (c\<cdot>s) p q"
+              using \<open>daemon_step c c' p\<close> and \<open>consistent c' Q\<close>
+                and \<open>\<exists> p \<in> Q . \<exists> q . (c'\<cdot>R) p q \<noteq> (c'\<cdot>r) p q \<or> (c'\<cdot>S) p q \<noteq> (c'\<cdot>s) p q\<close>
+              unfolding daemon_step_def consistent_def
+              by (force split:if_splits)+
+            thus ?thesis using \<open>inv4 c\<close> unfolding inv4_def by auto 
+          qed
+          hence ?thesis using \<open>daemon_step c c' p\<close> and \<open>p \<notin> Q\<close>
+            unfolding daemon_step_def by (auto split:if_splits) }
+        moreover
+        { assume "p \<in> Q"
+          have ?thesis sorry }
+        ultimately show ?thesis by blast
+      qed }
     thus ?thesis
       using inv4_def by blast 
   qed
