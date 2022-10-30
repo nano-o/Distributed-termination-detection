@@ -97,6 +97,7 @@ process(self) ==
 UpdateCount(p, processCount, daemonCount) ==
   LET
     \* @type: (P -> P -> Int, P) => P -> P -> Int;
+    \* TODO: no need for the fold here, we can just set it to processCount[p]
     Update(count_, q) == [count_ EXCEPT ![p] = [@ EXCEPT ![q] = processCount[p][q]]]
   IN
     \* For each q in P, update the count

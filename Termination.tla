@@ -48,8 +48,9 @@ EXTENDS Integers, FiniteSets, Apalache, Sequences
 
 \* @type: Set(P);
 \* P == {"P1_OF_P", "P2_OF_P", "P3_OF_P"}
-\* P == {"P1_OF_P", "P2_OF_P", "P3_OF_P", "P4_OF_P"}
-P == {"P1_OF_P", "P2_OF_P", "P3_OF_P", "P4_OF_P", "P5_OF_P"}
+P == {"P1_OF_P", "P2_OF_P", "P3_OF_P", "P4_OF_P"}
+\* NOTE: with 5 processes it takes around 10 minutes on a powerful machine (powerful in 2022).
+\* P == {"P1_OF_P", "P2_OF_P", "P3_OF_P", "P4_OF_P", "P5_OF_P"}
 
 \* Initially, we'll have a message from pa to pb
 \* @type: P;
@@ -117,6 +118,7 @@ TypeOkay ==
 (* member of Q                                                             *)
 (***************************************************************************)
 \* @type: (Set(P), P) => <<P,P>> -> Int;
+\* TODO: why do we need a fold here? Can we not just use and ITE expression?
 SendToFrom(Q, p) ==
   LET
     \* @type: (<<P,P>> -> Int, P) => <<P,P>> -> Int;
@@ -179,19 +181,14 @@ Bounds ==
 
 \* Candidate invariants
 
-\* Daemon counts are zero for unvisited processes:
-Inv1 == \A p \in P \ visited : \A q \in P : R[<<p,q>>] = 0 /\ S[<<p,q>>] = 0
+\* Daemon receive counts are necessarily smaller than real receive counts:
+Inv1 == \A p,q \in P :
+  /\  R[<<p,q>>] <= r[<<p,q>>]
 Inv1_ == TypeOkay /\ Inv1
 
-\* Daemon counts are necessarily smaller than real counts:
-Inv2 == \A p,q \in P :
-  /\  S[<<p,q>>] <= s[<<p,q>>]
-  /\  R[<<p,q>>] <= r[<<p,q>>]
-Inv2_ == TypeOkay /\ Inv2
-
 \* A process cannot receive more than has been sent to it:
-Inv3 == \A p,q \in P : r[<<p,q>>] <= s[<<q,p>>]
-Inv3_ == TypeOkay /\ Inv3
+Inv2 == \A p,q \in P : r[<<p,q>>] <= s[<<q,p>>]
+Inv2_ == TypeOkay /\ Inv2
 
 Consistent(Q) ==
   /\ Q \subseteq visited
@@ -199,14 +196,15 @@ Consistent(Q) ==
 
 \* If Q is consistent and a member of Q has received or sent more than what the daemon saw,
 \* then a message from outside Q that the daemon has not seen has been received:
-Inv4 == \A Q \in SUBSET visited :
+Inv3 == \A Q \in SUBSET visited :
   (Consistent(Q) /\ \E p \in Q, q \in P : (r[<<p,q>>] > R[<<p,q>>] \/ s[<<p,q>>] > S[<<p,q>>]))
   => \E p \in Q, q \in P \ Q : r[<<p,q>>] > R[<<p,q>>]
-Inv4_ == TypeOkay /\ Inv1 /\ Inv2 /\ Inv3 /\ Inv4
+Inv3_ == TypeOkay /\ Inv1 /\ Inv2 /\ Inv3
 
-Correctness_ == TypeOkay /\ Inv1 /\ Inv2 /\ Inv3 /\ Inv4 /\ Correctness
+\* TODO: here we just want to check that Inv3 implies Correctness
+Correctness_ == TypeOkay /\ Inv1 /\ Inv2 /\ Inv3 /\ Correctness
 
-All == TypeOkay /\ Inv1 /\ Inv2 /\ Inv3 /\ Inv4 /\ Correctness
+All == TypeOkay /\ Inv1 /\ Inv2 /\ Inv3 /\ Correctness
 All_ == All
 
 =============================================================================
