@@ -72,7 +72,7 @@ lemma inv2_a_step:
 proof -
   have "inv2_a c'" if "receive_step c c' p " and "inv2_a c" for p
     using that unfolding receive_step_def inv2_a_def
-    by (smt (verit, ccfv_threshold) K_statefun_def Nat_nat_'p_fun_'p_fun.project_inject_cancel Suc_eq_plus1 distinct_left distinct_names fun_upd_apply in_set_right in_set_root lookup_update_other lookup_update_same nle_le not_less_eq_eq)
+    by (smt (verit, del_insts) K_statefun_def Nat_nat_'p_fun_'p_fun.project_inject_cancel add_increasing2 distinct_left distinct_names fun_upd_apply in_set_right in_set_root leI less_one lookup_update_other lookup_update_same nless_le)
   moreover 
   have "inv2_a c'" if "daemon_step c c'" and "inv2_a c"
   proof -
@@ -107,6 +107,24 @@ proof -
       by (auto split:if_splits)
     ultimately show ?thesis using \<open>inv2_b c\<close> unfolding inv2_b_def by auto
   qed
+  ultimately show ?thesis
+    using assms step_def by blast
+qed
+
+definition inv3 where
+  "inv3 c \<equiv> \<forall> p q . (c\<cdot>r) p q \<le> (c\<cdot>s) q p"
+
+lemma inv3_step:
+  assumes "step c c'" and "inv3 c"
+  shows "inv3 c'"
+proof -
+  have "inv3 c'" if "receive_step c c' p " and "inv3 c" for p
+    using that unfolding receive_step_def pending_def inv3_def
+    by (smt (verit) K_statefun_def Nat_nat_'p_fun_'p_fun.project_inject_cancel Suc_eq_plus1 Suc_leI fun_upd_apply lookup_update_other lookup_update_same trans_le_add1 zero_less_diff)
+  moreover 
+  have "inv3 c'" if "daemon_step c c'" and "inv3 c"
+    using that unfolding daemon_step_def inv3_def
+    by (auto split:if_splits)
   ultimately show ?thesis
     using assms step_def by blast
 qed
