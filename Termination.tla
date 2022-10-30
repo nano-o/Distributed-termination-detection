@@ -48,8 +48,8 @@ EXTENDS Integers, FiniteSets, Apalache, Sequences
 
 \* @type: Set(P);
 \* P == {"P1_OF_P", "P2_OF_P", "P3_OF_P"}
-P == {"P1_OF_P", "P2_OF_P", "P3_OF_P", "P4_OF_P"}
-\* P == {"P1_OF_P", "P2_OF_P", "P3_OF_P", "P4_OF_P", "P5_OF_P"}
+\* P == {"P1_OF_P", "P2_OF_P", "P3_OF_P", "P4_OF_P"}
+P == {"P1_OF_P", "P2_OF_P", "P3_OF_P", "P4_OF_P", "P5_OF_P"}
 
 \* Initially, we'll have a message from pa to pb
 \* @type: P;
