@@ -56,10 +56,7 @@ proof -
   moreover
   have "inv1 c'" if "daemon_step c c' p" and "inv1 c" for p
     using that unfolding daemon_step_def inv1_def 
-    apply auto
-    apply (smt (z3) HOL_bool_'p_fun.project_inject_axioms K_statefun_apply Nat_nat_'p_fun_'p_fun.project_inject_axioms all_distinct_right distinct_left_right distinct_names distinct_right fun_upd_other in_set_right in_set_root lookup_update_other lookup_update_same project_inject_def)
-    apply (smt (z3) HOL_bool_'p_fun.project_inject_axioms K_statefun_def Nat_nat_'p_fun_'p_fun.project_inject_axioms all_distinct_right distinct_left_right distinct_names distinct_right fun_upd_other in_set_right in_set_root lookup_update_other lookup_update_same project_inject_def)
-    done
+    by (auto split:if_splits)
   ultimately show ?thesis
     using assms step_def by blast
 qed
@@ -73,7 +70,7 @@ lemma inv2_a_step:
 proof -
   have "inv2_a c'" if "receive_step c c' p " and "inv2_a c" for p
     using that unfolding receive_step_def inv2_a_def
-    by (smt (verit, del_insts) K_statefun_def Nat_nat_'p_fun_'p_fun.project_inject_cancel add_increasing2 distinct_left distinct_names fun_upd_apply in_set_right in_set_root leI less_one lookup_update_other lookup_update_same nless_le)
+    by (auto; smt (verit, best) trans_le_add1)
   moreover 
   have "inv2_a c'" if "daemon_step c c' p " and "inv2_a c" for p
   proof -
@@ -121,7 +118,7 @@ lemma inv3_step:
 proof -
   have "inv3 c'" if "receive_step c c' p " and "inv3 c" for p
     using that unfolding receive_step_def pending_def inv3_def
-    by (smt (verit) K_statefun_def Nat_nat_'p_fun_'p_fun.project_inject_cancel Suc_eq_plus1 Suc_leI fun_upd_apply lookup_update_other lookup_update_same trans_le_add1 zero_less_diff)
+    by (auto; smt (verit, best) trans_le_add1)
   moreover 
   have "inv3 c'" if "daemon_step c c' p" and "inv3 c" for p
     using that unfolding daemon_step_def inv3_def
