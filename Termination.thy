@@ -39,11 +39,6 @@ definition daemon_step where
       R := (c\<cdot>R)(p := (c\<cdot>r) p)>
     else c' = c<terminated := True> )"
 
-lemma \<comment> \<open>A test lemma\<close>
-  assumes "receive_step c c' p"
-  shows "\<exists> q . pending c' q p \<le> pending c q p"
-  using assms pending_def vars.receive_step_def vars_axioms by fastforce
-
 definition step where
   "step c c' \<equiv> (\<exists> p . receive_step c c' p) \<or> daemon_step c c'"
 
@@ -77,9 +72,7 @@ lemma inv2_a_step:
 proof -
   have "inv2_a c'" if "receive_step c c' p " and "inv2_a c" for p
     using that unfolding receive_step_def inv2_a_def
-    apply auto
-    apply (smt (verit, del_insts) trans_le_add1)
-    done
+    by (smt (verit, ccfv_threshold) K_statefun_def Nat_nat_'p_fun_'p_fun.project_inject_cancel Suc_eq_plus1 distinct_left distinct_names fun_upd_apply in_set_right in_set_root lookup_update_other lookup_update_same nle_le not_less_eq_eq)
   moreover 
   have "inv2_a c'" if "daemon_step c c'" and "inv2_a c"
   proof -
@@ -89,6 +82,30 @@ proof -
     moreover have "c'\<cdot>s = c\<cdot>s" using \<open>daemon_step c c'\<close> unfolding daemon_step_def
       by (auto split:if_splits)
     ultimately show ?thesis using \<open>inv2_a c\<close> unfolding inv2_a_def by auto
+  qed
+  ultimately show ?thesis
+    using assms step_def by blast
+qed
+
+definition inv2_b where
+  "inv2_b c \<equiv> \<forall> p q . (c\<cdot>R) p q \<le> (c\<cdot>r) p q"
+
+lemma inv2_b_step:
+  assumes "step c c'" and "inv2_b c"
+  shows "inv2_b c'"
+proof -
+  have "inv2_b c'" if "receive_step c c' p " and "inv2_b c" for p
+    using that unfolding receive_step_def inv2_b_def
+    using nat_le_linear not_less_eq_eq by fastforce
+  moreover 
+  have "inv2_b c'" if "daemon_step c c'" and "inv2_b c"
+  proof -
+    have "\<exists> p . (c'\<cdot>R) = (c\<cdot>R)(p := (c\<cdot>r) p) \<or> (c'\<cdot>R) = (c\<cdot>R)"
+      using \<open>daemon_step c c'\<close> unfolding daemon_step_def by (auto split: if_splits)
+    with this obtain p where "(c'\<cdot>R) = (c\<cdot>R)(p := (c\<cdot>r) p) \<or> (c'\<cdot>R) = (c\<cdot>R)" by blast
+    moreover have "c'\<cdot>r = c\<cdot>r" using \<open>daemon_step c c'\<close> unfolding daemon_step_def
+      by (auto split:if_splits)
+    ultimately show ?thesis using \<open>inv2_b c\<close> unfolding inv2_b_def by auto
   qed
   ultimately show ?thesis
     using assms step_def by blast
