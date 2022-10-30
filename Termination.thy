@@ -31,16 +31,17 @@ definition receive_step where
         \<and> c' = c<s := (c\<cdot>s)(p:=s_p'), r := (c\<cdot>r)(p:=((c\<cdot>r) p)(q := (c\<cdot>r) p q + 1))>)"
 
 definition daemon_step where
-  "daemon_step c c' \<equiv> \<not> c\<cdot>terminated \<and> (
+  \<comment> \<open>TODO: it might make proofs easier to add p as parameter.\<close>
+  "daemon_step c c' p \<equiv> \<not> c\<cdot>terminated \<and> (
     if (\<exists> p . \<not> (c\<cdot>visited) p) \<or> (\<exists> p q . (c\<cdot>S) p q \<noteq> (c\<cdot>R) q p)
-    then \<exists> p . c' = c<
+    then c' = c<
       visited := (\<lambda> q . (c\<cdot>visited) q \<or> p = q),
       S := (c\<cdot>S)(p := (c\<cdot>s) p),
       R := (c\<cdot>R)(p := (c\<cdot>r) p)>
     else c' = c<terminated := True> )"
 
 definition step where
-  "step c c' \<equiv> (\<exists> p . receive_step c c' p) \<or> daemon_step c c'"
+  "step c c' \<equiv> \<exists> p . receive_step c c' p \<or> daemon_step c c' p"
 
 definition inv1 where
   "inv1 c \<equiv> \<forall> p . (c\<cdot>visited) p \<or> (\<forall> q . (c\<cdot>S) p q = 0 \<and> (c\<cdot>R) p q = 0)"
@@ -53,7 +54,7 @@ proof -
     using that unfolding receive_step_def inv1_def 
     by force
   moreover
-  have "inv1 c'" if "daemon_step c c'" and "inv1 c"
+  have "inv1 c'" if "daemon_step c c' p" and "inv1 c" for p
     using that unfolding daemon_step_def inv1_def 
     apply auto
     apply (smt (z3) HOL_bool_'p_fun.project_inject_axioms K_statefun_apply Nat_nat_'p_fun_'p_fun.project_inject_axioms all_distinct_right distinct_left_right distinct_names distinct_right fun_upd_other in_set_right in_set_root lookup_update_other lookup_update_same project_inject_def)
@@ -74,12 +75,12 @@ proof -
     using that unfolding receive_step_def inv2_a_def
     by (smt (verit, del_insts) K_statefun_def Nat_nat_'p_fun_'p_fun.project_inject_cancel add_increasing2 distinct_left distinct_names fun_upd_apply in_set_right in_set_root leI less_one lookup_update_other lookup_update_same nless_le)
   moreover 
-  have "inv2_a c'" if "daemon_step c c'" and "inv2_a c"
+  have "inv2_a c'" if "daemon_step c c' p " and "inv2_a c" for p
   proof -
-    have "\<exists> p . (c'\<cdot>S) = (c\<cdot>S)(p := (c\<cdot>s) p) \<or> (c'\<cdot>S) = (c\<cdot>S)"
-      using \<open>daemon_step c c'\<close> unfolding daemon_step_def by (auto split: if_splits)
-    with this obtain p where "(c'\<cdot>S) = (c\<cdot>S)(p := (c\<cdot>s) p) \<or> (c'\<cdot>S) = (c\<cdot>S)" by blast
-    moreover have "c'\<cdot>s = c\<cdot>s" using \<open>daemon_step c c'\<close> unfolding daemon_step_def
+    have "(c'\<cdot>S) = (c\<cdot>S)(p := (c\<cdot>s) p) \<or> (c'\<cdot>S) = (c\<cdot>S)"
+      using \<open>daemon_step c c' p\<close> unfolding daemon_step_def by (auto split: if_splits)
+    hence "(c'\<cdot>S) = (c\<cdot>S)(p := (c\<cdot>s) p) \<or> (c'\<cdot>S) = (c\<cdot>S)" by blast
+    moreover have "c'\<cdot>s = c\<cdot>s" using \<open>daemon_step c c' p\<close> unfolding daemon_step_def
       by (auto split:if_splits)
     ultimately show ?thesis using \<open>inv2_a c\<close> unfolding inv2_a_def by auto
   qed
@@ -98,12 +99,12 @@ proof -
     using that unfolding receive_step_def inv2_b_def
     using nat_le_linear not_less_eq_eq by fastforce
   moreover 
-  have "inv2_b c'" if "daemon_step c c'" and "inv2_b c"
+  have "inv2_b c'" if "daemon_step c c' p" and "inv2_b c" for p
   proof -
-    have "\<exists> p . (c'\<cdot>R) = (c\<cdot>R)(p := (c\<cdot>r) p) \<or> (c'\<cdot>R) = (c\<cdot>R)"
-      using \<open>daemon_step c c'\<close> unfolding daemon_step_def by (auto split: if_splits)
-    with this obtain p where "(c'\<cdot>R) = (c\<cdot>R)(p := (c\<cdot>r) p) \<or> (c'\<cdot>R) = (c\<cdot>R)" by blast
-    moreover have "c'\<cdot>r = c\<cdot>r" using \<open>daemon_step c c'\<close> unfolding daemon_step_def
+    have "(c'\<cdot>R) = (c\<cdot>R)(p := (c\<cdot>r) p) \<or> (c'\<cdot>R) = (c\<cdot>R)"
+      using \<open>daemon_step c c' p\<close> unfolding daemon_step_def by (auto split: if_splits)
+    hence "(c'\<cdot>R) = (c\<cdot>R)(p := (c\<cdot>r) p) \<or> (c'\<cdot>R) = (c\<cdot>R)" by blast
+    moreover have "c'\<cdot>r = c\<cdot>r" using \<open>daemon_step c c' p\<close> unfolding daemon_step_def
       by (auto split:if_splits)
     ultimately show ?thesis using \<open>inv2_b c\<close> unfolding inv2_b_def by auto
   qed
@@ -122,7 +123,7 @@ proof -
     using that unfolding receive_step_def pending_def inv3_def
     by (smt (verit) K_statefun_def Nat_nat_'p_fun_'p_fun.project_inject_cancel Suc_eq_plus1 Suc_leI fun_upd_apply lookup_update_other lookup_update_same trans_le_add1 zero_less_diff)
   moreover 
-  have "inv3 c'" if "daemon_step c c'" and "inv3 c"
+  have "inv3 c'" if "daemon_step c c' p" and "inv3 c" for p
     using that unfolding daemon_step_def inv3_def
     by (auto split:if_splits)
   ultimately show ?thesis
@@ -182,7 +183,14 @@ So, because we assume that the count of at least one process in Q changes, it mu
     thus ?thesis unfolding inv4_def by blast
   qed
   moreover
-  have "inv4 c'" if "daemon_step c c'"  sorry
+  have "inv4 c'" if "daemon_step c c' p" for p
+  proof -
+    { fix Q
+      assume "consistent c' Q" and "\<exists> p \<in> Q . \<exists> q . (c'\<cdot>R) p q \<noteq> (c'\<cdot>r) p q \<or> (c'\<cdot>S) p q \<noteq> (c'\<cdot>s) p q"
+      have "\<exists> p \<in> Q . \<exists> q \<in> -Q . (c'\<cdot>r) p q > (c'\<cdot>R) p q" sorry }
+    thus ?thesis
+      using inv4_def by blast 
+  qed
   ultimately show ?thesis 
     using assms(1) unfolding step_def by blast
 qed
