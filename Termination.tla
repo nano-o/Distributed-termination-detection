@@ -38,19 +38,23 @@
 (*                                                                         *)
 (*     $APALACHE_HOME/script/run-docker.sh check --init=Inv1_ --inv=Inv1 --length=1 Termination.tla *)
 (*                                                                         *)
-(* To check the main correctness property:                                 *)
+(* To check the main safety property, we check that the invariants imply   *)
+(* it:                                                                     *)
 (*                                                                         *)
-(*     $APALACHE_HOME/script/run-docker.sh check --init=Correctness_ --inv=Correctness --length=1 Termination.tla *)
+(*     $APALACHE_HOME/script/run-docker.sh check --init=Safety_precondition --inv=Safety --length=0 Termination.tla *)
 (*                                                                         *)
 (***************************************************************************)
 
 EXTENDS Integers, FiniteSets, Apalache, Sequences
 
 \* @type: Set(P);
+\* P == {"P1_OF_P"}
+\* P == {"P1_OF_P", "P2_OF_P"}
 \* P == {"P1_OF_P", "P2_OF_P", "P3_OF_P"}
-P == {"P1_OF_P", "P2_OF_P", "P3_OF_P", "P4_OF_P"}
-\* NOTE: with 5 processes it takes around 10 minutes on a powerful machine (powerful in 2022).
-\* P == {"P1_OF_P", "P2_OF_P", "P3_OF_P", "P4_OF_P", "P5_OF_P"}
+\* P == {"P1_OF_P", "P2_OF_P", "P3_OF_P", "P4_OF_P"}
+\* NOTE: with 5 processes it takes around 1 minute on a powerful machine (powerful in 2022).
+P == {"P1_OF_P", "P2_OF_P", "P3_OF_P", "P4_OF_P", "P5_OF_P"}
+\* P == {"P1_OF_P", "P2_OF_P", "P3_OF_P", "P4_OF_P", "P5_OF_P", "P6_OF_P"}
 
 \* Initially, we'll have a message from pa to pb
 \* @type: P;
@@ -90,7 +94,7 @@ NumPending(pq) ==
     s[<<p,q>>] - r[<<q, p>>]
 
 \* The correstness property: when the daemon terminates, there are no messages in flight (i.e. the distributed computation is finished):
-Correctness == terminated => \A p,q \in P : NumPending(<<p,q>>) = 0
+Safety == terminated => \A p,q \in P : NumPending(<<p,q>>) = 0
 
 Init ==
     /\ s = [pq \in P\times P |->
@@ -175,15 +179,18 @@ Consistent(Q) ==
 \* If Q is consistent and a member of Q has received or sent more than what the daemon saw,
 \* then a message from outside Q that the daemon has not seen has been received:
 Inv3 == \A Q \in SUBSET visited :
-  (Consistent(Q) /\ \E p \in Q, q \in P : (r[<<p,q>>] > R[<<p,q>>] \/ s[<<p,q>>] > S[<<p,q>>]))
+  (Consistent(Q) /\ \E p \in Q, q \in P : (r[<<p,q>>] # R[<<p,q>>] \/ s[<<p,q>>] # S[<<p,q>>]))
   => \E p \in Q, q \in P \ Q : r[<<p,q>>] > R[<<p,q>>]
 Inv3_ == TypeOkay /\ Inv1 /\ Inv2 /\ Inv3
 
-\* TODO: see inv4 in the Isabelle proof
-Correctness_ == TypeOkay /\ Inv1 /\ Inv2 /\ Inv3 /\ Correctness
+Inv4 ==
+  terminated => Consistent(P)
+Inv4_ == TypeOkay /\ Inv4
 
-All == TypeOkay /\ Inv1 /\ Inv2 /\ Inv3 /\ Correctness
-All_ == All
+\* Then we check that Inv3 and Inv4 imply Safety by using
+\* Safety_precondition as init predicate and checking that Safety holds
+\* in the initial state.
+Safety_precondition == TypeOkay /\ Inv3 /\ Inv4
 
 =============================================================================
 \* Modification History
