@@ -80,7 +80,7 @@ VARIABLES
 
 \* The number of messages in flight from p to q:
 \* @type: (<<P,P>>) => Int;
-Msgs(pq) ==
+NumPending(pq) ==
   LET
     \* @type: P;
     p == pq[1]
@@ -90,7 +90,7 @@ Msgs(pq) ==
     s[<<p,q>>] - r[<<q, p>>]
 
 \* The correstness property: when the daemon terminates, there are no messages in flight (i.e. the distributed computation is finished):
-Correctness == terminated => \A p,q \in P : Msgs(<<p,q>>) = 0
+Correctness == terminated => \A p,q \in P : NumPending(<<p,q>>) = 0
 
 Init ==
     /\ s = [pq \in P\times P |->
@@ -114,39 +114,17 @@ TypeOkay ==
   /\  terminated \in BOOLEAN
 
 (***************************************************************************)
-(* Compute the new count corresponding to sending one message to each      *)
-(* member of Q                                                             *)
-(***************************************************************************)
-\* @type: (Set(P), P) => <<P,P>> -> Int;
-\* TODO: why do we need a fold here? Can we not just use and ITE expression?
-SendToFrom(Q, p) ==
-  LET
-    \* @type: (<<P,P>> -> Int, P) => <<P,P>> -> Int;
-    Send(s_, q) == [s_ EXCEPT ![<<p,q>>] = @+1]
-  IN
-    ApaFoldSet(Send, s, Q)
-
-
-(***************************************************************************)
 (* Receive a message and, in response, pick a set Q of processes and send  *)
 (* one new message to each.                                                *)
 (***************************************************************************)
 process(self) ==
   /\ \E p \in P \ {self} :
-      /\ Msgs(<<p,self>>) > 0
+      /\ NumPending(<<p,self>>) > 0
       /\ r' = [r EXCEPT ![<<self,p>>] =  @ + 1]
-      /\ \E Q \in SUBSET (P \ {self}):
-           /\ s' = SendToFrom(Q, self)
- /\ UNCHANGED << S, R, visited, terminated >>
-
-\* @type: (P, <<P,P>> -> Int, <<P,P>> -> Int) => <<P,P>> -> Int;
-UpdateCount(p, processCount, daemonCount) ==
-  LET
-    \* @type: (<<P,P>> -> Int, P) => <<P,P>> -> Int;
-    Update(count_, q) == [count_ EXCEPT ![<<p,q>>] = processCount[<<p,q>>]]
-  IN
-    \* For each q in P, update the count
-    ApaFoldSet(Update, daemonCount, P)
+  /\ \E Q \in SUBSET (P \ {self}):
+     /\ s' = [t \in P\times P |->
+          IF t[1] = self /\ t[2] \in Q THEN s[t]+1 ELSE s[t]]
+  /\ UNCHANGED << S, R, visited, terminated >>
 
 (***************************************************************************)
 (* While the daemon has not visited all processes, or it has but there is  *)
@@ -157,8 +135,8 @@ daemon ==
         /\ \neg terminated
         /\ IF visited # P \/ \E p,q \in visited : S[<<p,q>>] # R[<<q,p>>]
               THEN /\ \E p \in P:
-                        /\ S' = UpdateCount(p, s, S)
-                        /\ R' = UpdateCount(p, r, R)
+                        /\ S' = [t \in P\times P |-> IF t[1] = p THEN s[t] ELSE S[t]]
+                        /\ R' = [t \in P\times P |-> IF t[1] = p THEN r[t] ELSE R[t]]
                         /\ visited' = (visited \union {p})
                         /\ UNCHANGED terminated
               ELSE /\ terminated' = TRUE
@@ -201,7 +179,7 @@ Inv3 == \A Q \in SUBSET visited :
   => \E p \in Q, q \in P \ Q : r[<<p,q>>] > R[<<p,q>>]
 Inv3_ == TypeOkay /\ Inv1 /\ Inv2 /\ Inv3
 
-\* TODO: here we just want to check that Inv3 implies Correctness
+\* TODO: see inv4 in the Isabelle proof
 Correctness_ == TypeOkay /\ Inv1 /\ Inv2 /\ Inv3 /\ Correctness
 
 All == TypeOkay /\ Inv1 /\ Inv2 /\ Inv3 /\ Correctness
