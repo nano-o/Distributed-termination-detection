@@ -38,13 +38,14 @@ relative to `Inv1_` with Apalache, run:
 $APALACHE_HOME/script/run-docker.sh check --init=Inv1_ --inv=Inv1 --length=1 Termination.tla
 ```
 
-The predicate `All` is the conjuction of all the invariants (including the main correctness property).
-So, the fact that it's inductive proves that the main correctness property is an invariant of the protocol.
+The safety property is implied by invariants 3 and 4.
 To check this with Apalache, run:
 
 ```
-$APALACHE_HOME/script/run-docker.sh check --init=All --inv=All --length=1 Termination.tla
+$APALACHE_HOME/script/run-docker.sh check --init=Safety_precondition --inv=Safety --length=0 Termination.tla
 ```
+
+To check everything with one command, run `check-proof.sh`.
 
 I also proved the algorithm correct for any number of process using Isabelle/HOL
 (see [`Termination.thy`](Termination.thy), which must be opened using
