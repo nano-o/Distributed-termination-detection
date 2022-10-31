@@ -2,6 +2,8 @@ theory Termination
   imports Main "HOL-Statespace.StateSpaceSyntax"
 begin
 
+section "Specification of the algorithm"
+
 statespace 'p vars = 
   s :: "'p \<Rightarrow> 'p \<Rightarrow> nat"
   S :: "'p \<Rightarrow> 'p \<Rightarrow> nat"
@@ -31,7 +33,6 @@ definition receive_step where
         \<and> c' = c<s := (c\<cdot>s)(p:=s_p'), r := (c\<cdot>r)(p:=((c\<cdot>r) p)(q := (c\<cdot>r) p q + 1))>)"
 
 definition daemon_step where
-  \<comment> \<open>TODO: it might make proofs easier to add p as parameter.\<close>
   "daemon_step c c' p \<equiv> \<not> c\<cdot>terminated \<and> (
     if (\<exists> p . \<not> (c\<cdot>visited) p) \<or> (\<exists> p q . (c\<cdot>S) p q \<noteq> (c\<cdot>R) q p)
     then c' = c<
@@ -43,8 +44,26 @@ definition daemon_step where
 definition step where
   "step c c' \<equiv> \<exists> p . receive_step c c' p \<or> daemon_step c c' p"
 
+definition init where
+  "init c \<equiv> \<forall> p q .
+    (c\<cdot>s) p q \<ge> 0
+    \<and> (c\<cdot>S) p q = 0
+    \<and> (c\<cdot>r) p q = 0
+    \<and> (c\<cdot>R) p q = 0
+    \<and> \<not> (c\<cdot>visited) p
+    \<and> \<not> (c\<cdot>terminated)"
+
+section "Correctness proof"
+
 definition inv1 where
   "inv1 c \<equiv> \<forall> p q . (c\<cdot>R) p q \<le> (c\<cdot>r) p q"
+
+lemma inv1_init:
+  assumes "init c"
+  shows "inv1 c"
+  using assms
+  unfolding init_def inv1_def 
+  by auto
 
 lemma inv1_step:
   assumes "step c c'" and "inv1 c"
@@ -67,20 +86,27 @@ proof -
     using assms step_def by blast
 qed
 
-definition inv3 where
+definition inv2 where
   \<comment> \<open>A process can only receive what has been sent.\<close>
-  "inv3 c \<equiv> \<forall> p q . (c\<cdot>r) p q \<le> (c\<cdot>s) q p"
+  "inv2 c \<equiv> \<forall> p q . (c\<cdot>r) p q \<le> (c\<cdot>s) q p"
 
-lemma inv3_step:
-  assumes "step c c'" and "inv3 c"
-  shows "inv3 c'"
+lemma inv2_init:
+  assumes "init c"
+  shows "inv2 c"
+  using assms
+  unfolding init_def inv2_def 
+  by auto
+
+lemma inv2_step:
+  assumes "step c c'" and "inv2 c"
+  shows "inv2 c'"
 proof -
-  have "inv3 c'" if "receive_step c c' p " and "inv3 c" for p
-    using that unfolding receive_step_def pending_def inv3_def
+  have "inv2 c'" if "receive_step c c' p " and "inv2 c" for p
+    using that unfolding receive_step_def pending_def inv2_def
     by (auto; smt (verit, best) trans_le_add1)
   moreover 
-  have "inv3 c'" if "daemon_step c c' p" and "inv3 c" for p
-    using that unfolding daemon_step_def inv3_def
+  have "inv2 c'" if "daemon_step c c' p" and "inv2 c" for p
+    using that unfolding daemon_step_def inv2_def
     by (auto split:if_splits)
   ultimately show ?thesis
     using assms step_def by blast
@@ -89,16 +115,23 @@ qed
 definition consistent where
   "consistent c Q \<equiv> \<forall> p \<in> Q . (c\<cdot>visited) p \<and> (\<forall> q \<in> Q . (c\<cdot>S) p q = (c\<cdot>R) q p)"
 
-definition inv4 where
-  "inv4 c \<equiv> \<forall> Q . consistent c Q \<and> (\<exists> p \<in> Q . \<exists> q . (c\<cdot>R) p q \<noteq> (c\<cdot>r) p q \<or> (c\<cdot>S) p q \<noteq> (c\<cdot>s) p q)
+definition inv3 where
+  "inv3 c \<equiv> \<forall> Q . consistent c Q \<and> (\<exists> p \<in> Q . \<exists> q . (c\<cdot>R) p q \<noteq> (c\<cdot>r) p q \<or> (c\<cdot>S) p q \<noteq> (c\<cdot>s) p q)
     \<longrightarrow> (\<exists> p \<in> Q . \<exists> q \<in> -Q . (c\<cdot>r) p q > (c\<cdot>R) p q)"
 
-lemma inv4_step:
-  assumes "step c c'" and "inv1 c" and "inv3 c'" and "inv4 c"
-  shows "inv4 c'"
+lemma inv3_init:
+  assumes "init c"
+  shows "inv3 c"
+  using assms
+  unfolding init_def inv3_def consistent_def
+  by auto
+
+lemma inv3_step:
+  assumes "step c c'" and "inv1 c" and "inv2 c'" and "inv3 c"
+  shows "inv3 c'"
 proof -
   define stale where "stale c Q \<equiv> \<exists> p \<in> Q . \<exists> q . (c\<cdot>R) p q \<noteq> (c\<cdot>r) p q \<or> (c\<cdot>S) p q \<noteq> (c\<cdot>s) p q" for c Q
-  have "inv4 c'" if "receive_step c c' p " for p
+  have "inv3 c'" if "receive_step c c' p " for p
   proof -
     { fix Q
       assume "consistent c' Q" and "stale c' Q"
@@ -109,7 +142,7 @@ proof -
         { assume "stale c Q"
             \<comment> \<open>If Q is stale in @{term c}, then already in @{term c} there is a process that 
 has received a message from outside Q that the daemon has not seen. This remains true.}\<close> 
-          hence "\<exists> p \<in> Q . \<exists> q \<in> -Q . (c\<cdot>r) p q > (c\<cdot>R) p q" using \<open>inv4 c\<close> \<open>consistent c Q\<close> inv4_def stale_def by auto
+          hence "\<exists> p \<in> Q . \<exists> q \<in> -Q . (c\<cdot>r) p q > (c\<cdot>R) p q" using \<open>inv3 c\<close> \<open>consistent c Q\<close> inv3_def stale_def by auto
           hence ?thesis using \<open>receive_step c c' p\<close> unfolding receive_step_def
             using \<open>inv1 c\<close> inv1_def less_Suc_eq_le by fastforce }
         moreover
@@ -145,10 +178,10 @@ So, because we assume that the count of at least one process in Q changes, it mu
           have ?thesis by force }
         ultimately show ?thesis by auto
       qed }
-    thus ?thesis unfolding inv4_def stale_def by blast
+    thus ?thesis unfolding inv3_def stale_def by blast
   qed
   moreover
-  have "inv4 c'" if "daemon_step c c' p" for p
+  have "inv3 c'" if "daemon_step c c' p" for p
   proof -
     { fix Q
       assume "consistent c' Q" and "stale c' Q"
@@ -165,7 +198,7 @@ So, because we assume that the count of at least one process in Q changes, it mu
                   and \<open>stale c' Q\<close>
                 unfolding daemon_step_def consistent_def stale_def
                 by (force split:if_splits)+
-              thus ?thesis using \<open>inv4 c\<close> unfolding inv4_def by auto 
+              thus ?thesis using \<open>inv3 c\<close> unfolding inv3_def by auto 
             qed
             hence ?thesis using \<open>daemon_step c c' p\<close> and \<open>p \<notin> Q\<close>
               unfolding daemon_step_def by (auto split:if_splits) }
@@ -189,7 +222,7 @@ So, because we assume that the count of at least one process in Q changes, it mu
                     by (auto split:if_splits)
                   ultimately
                   show ?thesis
-                    using \<open>inv4 c\<close> unfolding inv4_def stale_def by auto
+                    using \<open>inv3 c\<close> unfolding inv3_def stale_def by auto
                 qed
                 thus ?thesis using \<open>daemon_step c c' p\<close> unfolding daemon_step_def Q'_def
                   by (auto split:if_splits)
@@ -216,7 +249,7 @@ So, because we assume that the count of at least one process in Q changes, it mu
                   by auto
                 hence "(c'\<cdot>r) p' p > (c'\<cdot>s) p p'" using \<open>(c'\<cdot>R) p' p = (c'\<cdot>s) p p'\<close>
                   by auto
-                hence False using \<open>inv3 c'\<close> unfolding inv3_def
+                hence False using \<open>inv2 c'\<close> unfolding inv2_def
                   by (simp add: leD) }
               thus ?thesis by blast
             qed
@@ -230,16 +263,42 @@ So, because we assume that the count of at least one process in Q changes, it mu
         then show ?thesis
           using \<open>daemon_step c c' p\<close> and \<open>consistent c' Q\<close>
             and \<open>stale c' Q\<close>
-            and \<open>inv4 c\<close>
-          unfolding daemon_step_def consistent_def inv4_def stale_def
+            and \<open>inv3 c\<close>
+          unfolding daemon_step_def consistent_def inv3_def stale_def
           by auto
       qed }
     thus ?thesis
-      using inv4_def stale_def by blast 
+      using inv3_def stale_def by blast 
   qed
   ultimately show ?thesis 
     using assms(1) unfolding step_def by blast
 qed
+
+definition inv4 where
+  "inv4 c \<equiv> c\<cdot>terminated \<longrightarrow> consistent c UNIV"
+
+lemma inv4_init:
+  assumes "init c"
+  shows "inv4 c"
+  using assms
+  unfolding init_def inv4_def 
+  by auto
+
+lemma inv4_step:
+  assumes "step c c'" and "inv4 c"
+  shows "inv4 c'"
+  using assms
+  unfolding step_def daemon_step_def receive_step_def inv4_def consistent_def
+  by (force split:if_splits)
+
+definition safety where
+  "safety c \<equiv> c\<cdot>terminated \<longrightarrow> (\<forall> p q . pending c p q = 0)"
+
+lemma safe:
+  assumes "inv3 c" and "inv4 c"
+  shows "safety c"
+  using assms unfolding inv3_def safety_def pending_def inv4_def consistent_def
+  by (simp; metis ComplD iso_tuple_UNIV_I le_refl)
 
 end
 
