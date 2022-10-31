@@ -51,9 +51,10 @@ EXTENDS Integers, FiniteSets, Apalache, Sequences
 \* P == {"P1_OF_P"}
 \* P == {"P1_OF_P", "P2_OF_P"}
 \* P == {"P1_OF_P", "P2_OF_P", "P3_OF_P"}
-\* P == {"P1_OF_P", "P2_OF_P", "P3_OF_P", "P4_OF_P"}
+P == {"P1_OF_P", "P2_OF_P", "P3_OF_P", "P4_OF_P"}
 \* NOTE: with 5 processes it takes around 1 minute on a powerful machine (powerful in 2022).
-P == {"P1_OF_P", "P2_OF_P", "P3_OF_P", "P4_OF_P", "P5_OF_P"}
+\* P == {"P1_OF_P", "P2_OF_P", "P3_OF_P", "P4_OF_P", "P5_OF_P"}
+\* NOTE: with 6 processes it takes around 25 minute on a powerful machine (powerful in 2022).
 \* P == {"P1_OF_P", "P2_OF_P", "P3_OF_P", "P4_OF_P", "P5_OF_P", "P6_OF_P"}
 
 \* Initially, we'll have a message from pa to pb
