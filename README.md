@@ -1,4 +1,4 @@
-# Distributed termination detection -- verified with Apalache
+# Distributed termination detection -- verified with Apalache and Isabelle/HOL
 
 Distributed termination detection of a message-driven computation.  A set of
 processes exchange messages.  Initialy there is one message in the network.  A
@@ -45,3 +45,7 @@ To check this with Apalache, run:
 ```
 $APALACHE_HOME/script/run-docker.sh check --init=All --inv=All --length=1 Termination.tla
 ```
+
+I also proved the algorithm correct for any number of process using Isabelle/HOL
+(see `Termination.thy`, which must be opened using
+[Isabelle](https://isabelle.in.tum.de/)).
