@@ -20,12 +20,12 @@ described in Section 7.
 
 The original, operational proof is a little mind-bending (the principle is
 illustrated in Figure 8, Section 6, of *Algorithms for distributed termination
-detection.*). Instead, `Termination.tla` shows that there is a relatively
-simple inductive invariant that proves the correctness of the algorithm. So
-this kind of a proof pearl.
+detection.*). Instead, [`Termination.tla`](Termination.tla) shows that there is
+a relatively simple inductive invariant that proves the correctness of the
+algorithm. So this kind of a proof pearl.
 
-`Termination.tla` contains both the specification of the algorithm and an
-inductive invariant that proves safety.
+[`Termination.tla`](Termination.tla) contains both the specification of the
+algorithm and an inductive invariant that proves safety.
 
 The specification is annotated for model-checking with Apalache, which is able
 to prove all the invariants inductive for 6 processes.
@@ -47,5 +47,5 @@ $APALACHE_HOME/script/run-docker.sh check --init=All --inv=All --length=1 Termin
 ```
 
 I also proved the algorithm correct for any number of process using Isabelle/HOL
-(see `Termination.thy`, which must be opened using
+(see [`Termination.thy`](Termination.thy), which must be opened using
 [Isabelle](https://isabelle.in.tum.de/)).
