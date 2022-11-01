@@ -141,14 +141,14 @@ proof -
           unfolding consistent_def receive_step_def by auto
         { assume "stale c Q"
             \<comment> \<open>If Q is stale in @{term c}, then already in @{term c} there is a process that 
-has received a message from outside Q that the daemon has not seen. This remains true.}\<close> 
+has received a message from outside Q that the daemon has not seen. This remains true.\<close> 
           hence "\<exists> p \<in> Q . \<exists> q \<in> -Q . (c\<cdot>r) p q > (c\<cdot>R) p q" using \<open>inv3 c\<close> \<open>consistent c Q\<close> inv3_def stale_def by auto
           hence ?thesis using \<open>receive_step c c' p\<close> unfolding receive_step_def
             using \<open>inv1 c\<close> inv1_def less_Suc_eq_le by fastforce }
         moreover
         { assume "\<not> (stale c Q)"
             \<comment> \<open>If Q is not stale in @{term c}, then no process in Q can receive a message from another process in Q (because all counts match).
-So, because we assume that the count of at least one process in Q changes, it must be by receiving a message from outside Q.}\<close>
+So, because we assume that the count of at least one process in Q changes, it must be by receiving a message from outside Q.\<close>
           obtain q where "p \<in> Q" and "(c'\<cdot>r) p q \<noteq> (c\<cdot>r) p q"
             using \<open>stale c' Q\<close> and \<open>receive_step c c' p\<close> and \<open>\<not> (stale c Q)\<close> 
             unfolding receive_step_def stale_def pending_def 
@@ -193,12 +193,12 @@ So, because we assume that the count of at least one process in Q changes, it mu
           { assume "p \<notin> Q"
             have "\<exists> p \<in> Q . \<exists> q \<in> -Q . (c\<cdot>r) p q > (c\<cdot>R) p q"
             proof -
-              from \<open>p\<notin>Q\<close> have "consistent c Q" and "\<exists> p \<in> Q . \<exists> q . (c\<cdot>R) p q \<noteq> (c\<cdot>r) p q \<or> (c\<cdot>S) p q \<noteq> (c\<cdot>s) p q"
+              from \<open>p\<notin>Q\<close> have "consistent c Q" and "stale c Q"
                 using \<open>daemon_step c c' p\<close> and \<open>consistent c' Q\<close>
                   and \<open>stale c' Q\<close>
                 unfolding daemon_step_def consistent_def stale_def
                 by (force split:if_splits)+
-              thus ?thesis using \<open>inv3 c\<close> unfolding inv3_def by auto 
+              thus ?thesis using \<open>inv3 c\<close> unfolding inv3_def stale_def by auto 
             qed
             hence ?thesis using \<open>daemon_step c c' p\<close> and \<open>p \<notin> Q\<close>
               unfolding daemon_step_def by (auto split:if_splits) }
@@ -231,7 +231,7 @@ So, because we assume that the count of at least one process in Q changes, it mu
             qed
             moreover
             have "q \<noteq> p"
-              \<comment> \<open>Now we have to show that @{term q} is not the @{term p} visited by the daemon.}\<close>
+              \<comment> \<open>Now we have to show that @{term q} is not the @{term p} visited by the daemon.\<close>
             proof -
               have "(c'\<cdot>R) p' p = (c'\<cdot>s) p p'"
               proof -

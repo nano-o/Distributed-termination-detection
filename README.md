@@ -47,6 +47,9 @@ $APALACHE_HOME/script/run-docker.sh check --init=Safety_precondition --inv=Safet
 
 To check everything with one command, run `check-proof.sh`.
 
-I also proved the algorithm correct for any number of process using Isabelle/HOL
-(see [`Termination.thy`](Termination.thy), which must be opened using
-[Isabelle](https://isabelle.in.tum.de/)).
+I also proved the algorithm correct for any number of process using
+Isabelle/HOL. [`Termination/Termination.thy`](Termination/Termination.thy)
+contains the Isabelle formalization (which must be opened using
+[Isabelle](https://isabelle.in.tum.de/)), and
+[`Termination/browser_info/index.html`](Termination/browser_info/index.html)
+contains a rendering of it in HTML.
