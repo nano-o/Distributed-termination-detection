@@ -51,5 +51,5 @@ I also proved the algorithm correct for any number of process using
 Isabelle/HOL. [`Termination/Termination.thy`](Termination/Termination.thy)
 contains the Isabelle formalization (which must be opened using
 [Isabelle](https://isabelle.in.tum.de/)), and
-[`Termination/browser_info/index.html`](Termination/browser_info/index.html)
+[`Termination/browser_info/index.html`](https://htmlpreview.github.io/?https://raw.githubusercontent.com/nano-o/Distributed-termination-detection/master/Termination/browser_info/Termination.html)
 contains a rendering of it in HTML.
