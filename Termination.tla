@@ -57,12 +57,6 @@ P == {"P1_OF_P", "P2_OF_P", "P3_OF_P", "P4_OF_P"}
 \* NOTE: with 6 processes it takes around 25 minute on a powerful machine (powerful in 2022).
 \* P == {"P1_OF_P", "P2_OF_P", "P3_OF_P", "P4_OF_P", "P5_OF_P", "P6_OF_P"}
 
-\* Initially, we'll have a message from pa to pb
-\* @type: P;
-pa == "P1_OF_P"
-\* @type: P;
-pb == "P2_OF_P"
-
 VARIABLES
     \* s[<<p,q>>] is the number of messages sent by p to q as counted by p:
     \* @type: <<P,P>> -> Int;
@@ -97,15 +91,6 @@ NumPending(pq) ==
 \* The correstness property: when the daemon terminates, there are no messages in flight (i.e. the distributed computation is finished):
 Safety == terminated => \A p,q \in P : NumPending(<<p,q>>) = 0
 
-Init ==
-    /\ s = [pq \in P\times P |->
-        IF pq[1] = pa /\ pq[2] = pb THEN 1 ELSE 0]
-    /\ r = [pq \in P\times P |-> 0]
-    /\ S = [pq \in P\times P |-> 0]
-    /\ R = [pq \in P\times P |-> 0]
-    /\ visited = {}
-    /\ terminated = FALSE
-
 TypeOkay ==
   /\  s \in [P\times P -> Int]
   /\  \A pq \in P\times P : s[pq] >= 0
@@ -117,6 +102,17 @@ TypeOkay ==
   /\  \A pq \in P\times P : R[pq] >= 0
   /\  visited \in SUBSET P
   /\  terminated \in BOOLEAN
+
+\* Initially, no messages have been received and the daemon has not started
+\* visiting any nodes. However, there may be some messages in flight (otherwise
+\* nothing happens).
+Init ==
+    /\ TypeOkay
+    /\ r = [pq \in P\times P |-> 0]
+    /\ S = [pq \in P\times P |-> 0]
+    /\ R = [pq \in P\times P |-> 0]
+    /\ visited = {}
+    /\ terminated = FALSE
 
 (***************************************************************************)
 (* Receive a message and, in response, pick a set Q of processes and send  *)
