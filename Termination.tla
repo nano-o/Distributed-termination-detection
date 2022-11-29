@@ -45,7 +45,7 @@
 (*                                                                         *)
 (***************************************************************************)
 
-EXTENDS Integers, FiniteSets, Apalache, Sequences
+EXTENDS Integers, FiniteSets, Sequences
 
 \* @type: Set(P);
 \* P == {"P1_OF_P"}
@@ -191,5 +191,5 @@ Safety_precondition == TypeOkay /\ Inv3 /\ Inv4
 
 =============================================================================
 \* Modification History
-\* Last modified Sun Aug 21 21:44:31 PDT 2022 by nano
+\* Last modified Tue Nov 29 10:58:29 PST 2022 by nano
 \* Created Sun May 22 18:34:58 PDT 2022 by nano
