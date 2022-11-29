@@ -144,8 +144,7 @@ daemon ==
                    /\ UNCHANGED << S, R, visited >>
         /\ UNCHANGED << s, r >>
 
-Next == daemon
-           \/ (\E self \in P : process(self))
+Next == daemon \/ (\E p \in P : process(p))
 
 vars == << s, r, S, R, visited, terminated >>
 Spec == Init /\ [][Next]_vars
@@ -189,7 +188,48 @@ Inv4_ == TypeOkay /\ Inv4
 \* in the initial state.
 Safety_precondition == TypeOkay /\ Inv3 /\ Inv4
 
+(***************************************************************************)
+(* Initial state for TLC (note that TLC explores the transition system     *)
+(* faster than Apalache when starting from this initial state)             *)
+(***************************************************************************)
+    
+TLC_Init ==  
+  /\ s = [pq \in P\times P |->
+      IF pq[1] = "P1_OF_P" /\ pq[2] = "P2_OF_P"
+      THEN 1
+      ELSE 0]
+  /\ r = [pq \in P\times P |-> 0]
+  /\ S = [pq \in P\times P |-> 0]
+  /\ R = [pq \in P\times P |-> 0]
+  /\ visited = {}
+  /\ terminated = FALSE
+    
+(***************************************************************************)
+(* Now we want to find a reachable configuration in which all the counts   *)
+(* match but the computation has not terminated.  Necessarily, this means  *)
+(* that the daemon has not visited every process.                          *)
+(*                                                                         *)
+(* Interestingly, TLC does not find any violation.  So, can we declare     *)
+(* termination as soon as the counts match, provided we have visited at    *)
+(* least one process with non-zero count?                                  *)
+(***************************************************************************)
+
+Canary1 == \neg (
+  /\ Cardinality(visited) >= 2
+  /\ \E q1,q2 \in P : S[<<q1,q2>>] > 0
+  /\ \A q1,q2 \in P : S[<<q1,q2>>] = R[<<q2,q1>>]
+  /\ \E q1,q2 \in P : s[<<q1,q2>>] > r[<<q2,q1>>] )
+
+Inv6 == \A p \in P : s[<<p,p>>] = 0
+
+Inv5 == \A Q \in SUBSET P :
+  /\ \E p \in Q : \E q \in P : s[<<p,q>>] > 0
+  /\ \E p \in P \ Q : \E q \in P : s[<<p,q>>] > 0 \/ r[<<p,q>>] > 0
+  => \E p \in Q : \E q \in P \ Q : s[<<p,q>>] > 0 \/ r[<<p,q>>] > 0
+
+Inv5_ == TypeOkay /\ Inv1 /\ Inv2 /\ Inv5
+
 =============================================================================
 \* Modification History
-\* Last modified Tue Nov 29 10:58:29 PST 2022 by nano
+\* Last modified Tue Nov 29 12:21:10 PST 2022 by nano
 \* Created Sun May 22 18:34:58 PDT 2022 by nano
