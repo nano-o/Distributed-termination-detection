@@ -49,9 +49,9 @@ EXTENDS Integers, FiniteSets, Sequences
 
 \* @type: Set(P);
 \* P == {"P1_OF_P"}
-\* P == {"P1_OF_P", "P2_OF_P"}
+P == {"P1_OF_P", "P2_OF_P"}
 \* P == {"P1_OF_P", "P2_OF_P", "P3_OF_P"}
-P == {"P1_OF_P", "P2_OF_P", "P3_OF_P", "P4_OF_P"}
+\* P == {"P1_OF_P", "P2_OF_P", "P3_OF_P", "P4_OF_P"}
 \* NOTE: with 5 processes it takes around 1 minute on a powerful machine (powerful in 2022).
 \* P == {"P1_OF_P", "P2_OF_P", "P3_OF_P", "P4_OF_P", "P5_OF_P"}
 \* NOTE: with 6 processes it takes around 25 minute on a powerful machine (powerful in 2022).
@@ -220,14 +220,24 @@ Canary1 == \neg (
   /\ \A q1,q2 \in P : S[<<q1,q2>>] = R[<<q2,q1>>]
   /\ \E q1,q2 \in P : s[<<q1,q2>>] > r[<<q2,q1>>] )
 
-Inv6 == \A p \in P : s[<<p,p>>] = 0
+Inv6 ==
+  /\ \A p \in P : s[<<p,p>>] = 0
+  /\ \A p \in P \ visited : \A q \in P : S[<<p,q>>] = 0 /\ R[<<p,q>>] = 0
 
 Inv5 == \A Q \in SUBSET P :
-  /\ \E p \in Q : \E q \in P : s[<<p,q>>] > 0
+  /\ \E p \in Q : \E q \in P : s[<<p,q>>] > 0 \/ r[<<p,q>>] > 0
   /\ \E p \in P \ Q : \E q \in P : s[<<p,q>>] > 0 \/ r[<<p,q>>] > 0
   => \E p \in Q : \E q \in P \ Q : s[<<p,q>>] > 0 \/ r[<<p,q>>] > 0
 
 Inv5_ == TypeOkay /\ Inv1 /\ Inv2 /\ Inv5
+
+\* TODO
+Inv7 == \* \A Q \in SUBSET P :
+  /\ \E p \in visited : \E q \in P : S[<<p,q>>] > 0 \/ R[<<p,q>>] > 0
+  /\ \E p \in P \ visited : \E q \in P : s[<<p,q>>] > 0 \/ r[<<p,q>>] > 0
+  => \E p \in visited : \E q \in P \ visited : S[<<p,q>>] # R[<<q,p>>] \/ R[<<p,q>>] # S[<<q,p>>]
+
+Inv7_ == TypeOkay /\ Inv1 /\ Inv2 /\ Inv5 /\ Inv6 /\ Inv7
 
 =============================================================================
 \* Modification History
