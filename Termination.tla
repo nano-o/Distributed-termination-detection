@@ -49,8 +49,8 @@ EXTENDS Integers, FiniteSets, Sequences
 
 \* @type: Set(P);
 \* P == {"P1_OF_P"}
-P == {"P1_OF_P", "P2_OF_P"}
-\* P == {"P1_OF_P", "P2_OF_P", "P3_OF_P"}
+\* P == {"P1_OF_P", "P2_OF_P"}
+P == {"P1_OF_P", "P2_OF_P", "P3_OF_P"}
 \* P == {"P1_OF_P", "P2_OF_P", "P3_OF_P", "P4_OF_P"}
 \* NOTE: with 5 processes it takes around 1 minute on a powerful machine (powerful in 2022).
 \* P == {"P1_OF_P", "P2_OF_P", "P3_OF_P", "P4_OF_P", "P5_OF_P"}
@@ -127,6 +127,16 @@ process(self) ==
           IF t[1] = self /\ t[2] \in Q THEN s[t]+1 ELSE s[t]]
   /\ UNCHANGED << S, R, visited, terminated >>
 
+\* Idea: can we complete the information we have by updating sent counts if we see more was received?
+\* This is done using Complete(_,_) below.
+\* It seems it breaks the algorithm though; or does it?
+\* @type: (<<P,P>> -> Int, <<P,P>> -> Int) => <<P,P>> -> Int;
+Complete(snt,rcv) ==
+  [t \in P\times P |->
+    IF rcv[<<t[2],t[1]>>] > snt[t]
+    THEN rcv[<<t[2],t[1]>>]
+    ELSE snt[t]]
+
 (***************************************************************************)
 (* While the daemon has not visited all processes, or it has but there is  *)
 (* a pair whose message counts, as recorded by the daemon, do not match,   *)
@@ -136,8 +146,8 @@ daemon ==
         /\ \neg terminated
         /\ IF visited # P \/ \E p,q \in visited : S[<<p,q>>] # R[<<q,p>>]
               THEN /\ \E p \in P:
-                        /\ S' = [t \in P\times P |-> IF t[1] = p THEN s[t] ELSE S[t]]
                         /\ R' = [t \in P\times P |-> IF t[1] = p THEN r[t] ELSE R[t]]
+                        /\ S' = Complete([t \in P\times P |-> IF t[1] = p THEN s[t] ELSE S[t]], R')
                         /\ visited' = (visited \union {p})
                         /\ UNCHANGED terminated
               ELSE /\ terminated' = TRUE
@@ -159,9 +169,10 @@ Bounds ==
 
 \* Candidate invariants
 
-\* Daemon receive counts are necessarily smaller than real receive counts:
+\* Daemon receive (and sent) counts are necessarily smaller than real receive counts:
 Inv1 == \A p,q \in P :
   /\  R[<<p,q>>] <= r[<<p,q>>]
+  /\  S[<<p,q>>] <= s[<<p,q>>]
 Inv1_ == TypeOkay /\ Inv1
 
 \* A process cannot receive more than has been sent to it:
@@ -177,7 +188,7 @@ Consistent(Q) ==
 Inv3 == \A Q \in SUBSET visited :
   (Consistent(Q) /\ \E p \in Q, q \in P : (r[<<p,q>>] # R[<<p,q>>] \/ s[<<p,q>>] # S[<<p,q>>]))
   => \E p \in Q, q \in P \ Q : r[<<p,q>>] > R[<<p,q>>]
-Inv3_ == TypeOkay /\ Inv1 /\ Inv2 /\ Inv3
+Inv3_ == TypeOkay /\ Inv1 /\ Inv2 /\ Inv3 /\ \A p,q \in P : s[<<p,q>>] <= 1
 
 Inv4 ==
   terminated => Consistent(P)
@@ -192,8 +203,8 @@ Safety_precondition == TypeOkay /\ Inv3 /\ Inv4
 (* Initial state for TLC (note that TLC explores the transition system     *)
 (* faster than Apalache when starting from this initial state)             *)
 (***************************************************************************)
-    
-TLC_Init ==  
+
+TLC_Init ==
   /\ s = [pq \in P\times P |->
       IF pq[1] = "P1_OF_P" /\ pq[2] = "P2_OF_P"
       THEN 1
@@ -203,7 +214,7 @@ TLC_Init ==
   /\ R = [pq \in P\times P |-> 0]
   /\ visited = {}
   /\ terminated = FALSE
-    
+
 (***************************************************************************)
 (* Now we want to find a reachable configuration in which all the counts   *)
 (* match but the computation has not terminated.  Necessarily, this means  *)
