@@ -47,7 +47,6 @@
 
 EXTENDS Integers, FiniteSets, Sequences
 
-\* @type: Set(P);
 \* P == {"P1_OF_P"}
 \* P == {"P1_OF_P", "P2_OF_P"}
 \* P == {"P1_OF_P", "P2_OF_P", "P3_OF_P"}
@@ -81,9 +80,7 @@ VARIABLES
 \* @type: (<<P,P>>) => Int;
 NumPending(pq) ==
   LET
-    \* @type: P;
     p == pq[1]
-    \* @type: P;
     q == pq[2]
   IN
     s[<<p,q>>] - r[<<q, p>>]
