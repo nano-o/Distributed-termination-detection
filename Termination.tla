@@ -45,14 +45,14 @@
 (*                                                                         *)
 (***************************************************************************)
 
-EXTENDS Integers, FiniteSets, Sequences
+EXTENDS Integers
 
 \* P == {"P1_OF_P"}
 \* P == {"P1_OF_P", "P2_OF_P"}
 \* P == {"P1_OF_P", "P2_OF_P", "P3_OF_P"}
-\* P == {"P1_OF_P", "P2_OF_P", "P3_OF_P", "P4_OF_P"}
+P == {"P1_OF_P", "P2_OF_P", "P3_OF_P", "P4_OF_P"}
 \* NOTE: with 5 processes it takes around 1 minute on a powerful machine (powerful in 2022).
-P == {"P1_OF_P", "P2_OF_P", "P3_OF_P", "P4_OF_P", "P5_OF_P"}
+\* P == {"P1_OF_P", "P2_OF_P", "P3_OF_P", "P4_OF_P", "P5_OF_P"}
 \* NOTE: with 6 processes it takes around 25 minute on a powerful machine (powerful in 2022).
 \* P == {"P1_OF_P", "P2_OF_P", "P3_OF_P", "P4_OF_P", "P5_OF_P", "P6_OF_P"}
 
@@ -63,12 +63,12 @@ VARIABLES
     \* r[<<p,q>>] is the number of messages received by p from q as counted by p
     \* @type: <<P,P>> -> Int;
     r,
-    \* S[<<p,q>>] is the number of messages sent by p to q as recorded by the daemon in its last visit to p:
+    \* ds[<<p,q>>] is the number of messages sent by p to q as recorded by the daemon in its last visit to p:
     \* @type: <<P,P>> -> Int;
-    S,
-    \* R[<<p,q>>] is the number of messages received by p from q as recorded by the daemon in its last visit to p:
+    ds,
+    \* dr[<<p,q>>] is the number of messages received by p from q as recorded by the daemon in its last visit to p:
     \* @type: <<P,P>> -> Int;
-    R,
+    dr,
     \* visited is the set of processes that the daemon visited so far:
     \* @type: Set(P);
     visited,
@@ -96,10 +96,10 @@ TypeOkay ==
   /\  \A pq \in P\times P : s[pq] >= 0
   /\  r \in [P\times P -> Int]
   /\  \A pq \in P\times P : r[pq] >= 0
-  /\  S \in [P\times P -> Int]
-  /\  \A pq \in P\times P : S[pq] >= 0
-  /\  R \in [P\times P -> Int]
-  /\  \A pq \in P\times P : R[pq] >= 0
+  /\  ds \in [P\times P -> Int]
+  /\  \A pq \in P\times P : ds[pq] >= 0
+  /\  dr \in [P\times P -> Int]
+  /\  \A pq \in P\times P : dr[pq] >= 0
   /\  visited \in SUBSET P
   /\  terminated \in BOOLEAN
 
@@ -111,9 +111,10 @@ TypeOkay ==
 
 Init ==
     /\ TypeOkay
+    /\ s \in [P\times P -> Int] \* we repeat this for clarity
     /\ r = [pq \in P\times P |-> 0]
-    /\ S = [pq \in P\times P |-> 0]
-    /\ R = [pq \in P\times P |-> 0]
+    /\ ds = [pq \in P\times P |-> 0]
+    /\ dr = [pq \in P\times P |-> 0]
     /\ visited = {}
     /\ terminated = FALSE
 
@@ -122,13 +123,13 @@ Init ==
 (* one new message to each.                                                *)
 (***************************************************************************)
 process(self) ==
-  /\ \E p \in P \ {self} :
+  /\ \E p \in P \ {self} : \* receive a message from p
       /\ NumPending(<<p,self>>) > 0
       /\ r' = [r EXCEPT ![<<self,p>>] =  @ + 1]
-  /\ \E Q \in SUBSET (P \ {self}):
+  /\ \E Q \in SUBSET (P \ {self}): \* send messages to set Q
      /\ s' = [t \in P\times P |->
           IF t[1] = self /\ t[2] \in Q THEN s[t]+1 ELSE s[t]]
-  /\ UNCHANGED << S, R, visited, terminated >>
+  /\ UNCHANGED << ds, dr, visited, terminated >>
 
 (***************************************************************************)
 (* While the daemon has not visited all processes, or it has but there is  *)
@@ -137,20 +138,19 @@ process(self) ==
 (***************************************************************************)
 daemon ==
         /\ \neg terminated
-        /\ IF visited # P \/ \E p,q \in visited : S[<<p,q>>] # R[<<q,p>>]
-              THEN /\ \E p \in P:
-                        /\ S' = [t \in P\times P |-> IF t[1] = p THEN s[t] ELSE S[t]]
-                        /\ R' = [t \in P\times P |-> IF t[1] = p THEN r[t] ELSE R[t]]
+        /\ IF visited # P \/ \E p,q \in visited : ds[<<p,q>>] # dr[<<q,p>>]
+              THEN /\ \E p \in P: \* visit p
+                        /\ ds' = [t \in P\times P |-> IF t[1] = p THEN s[t] ELSE ds[t]]
+                        /\ dr' = [t \in P\times P |-> IF t[1] = p THEN r[t] ELSE dr[t]]
                         /\ visited' = (visited \union {p})
                         /\ UNCHANGED terminated
-              ELSE /\ terminated' = TRUE
-                   /\ UNCHANGED << S, R, visited >>
+              ELSE /\ terminated' = TRUE \* declare termination
+                   /\ UNCHANGED << ds, dr, visited >>
         /\ UNCHANGED << s, r >>
 
-Next == daemon
-           \/ (\E self \in P : process(self))
+Next == daemon \/ (\E p \in P : process(p))
 
-vars == << s, r, S, R, visited, terminated >>
+vars == << s, r, ds, dr, visited, terminated >>
 Spec == Init /\ [][Next]_vars
 
 (***************************************************************************)
@@ -164,7 +164,7 @@ Canary1 == \neg terminated
 
 \* Daemon receive counts are necessarily smaller than real receive counts:
 Inv1 == \A p,q \in P :
-  /\  R[<<p,q>>] <= r[<<p,q>>]
+  /\  dr[<<p,q>>] <= r[<<p,q>>]
 Inv1_ == TypeOkay /\ Inv1
 
 \* A process cannot receive more than has been sent to it:
@@ -172,7 +172,7 @@ Inv2 == \A p,q \in P : r[<<p,q>>] <= s[<<q,p>>]
 Inv2_ == TypeOkay /\ Inv2
 
 Consistent(Q) ==
-  \A q1,q2 \in Q : S[<<q1,q2>>] = R[<<q2,q1>>]
+  \A q1,q2 \in Q : ds[<<q1,q2>>] = dr[<<q2,q1>>]
 
 (***************************************************************************)
 (* If a set Q of visited nodes is consistent and a member of Q has         *)
@@ -181,8 +181,8 @@ Consistent(Q) ==
 (***************************************************************************)
 Inv3 == \A Q \in SUBSET visited :
   /\ Consistent(Q)
-  /\ \E p \in Q, q \in P : r[<<p,q>>] # R[<<p,q>>] \/ s[<<p,q>>] # S[<<p,q>>]
-  => \E p \in Q, q \in P \ Q : r[<<p,q>>] > R[<<p,q>>]
+  /\ \E p \in Q, q \in P : r[<<p,q>>] # dr[<<p,q>>] \/ s[<<p,q>>] # ds[<<p,q>>]
+  => \E p \in Q, q \in P \ Q : r[<<p,q>>] > dr[<<p,q>>]
 Inv3_ == TypeOkay /\ Inv1 /\ Inv2 /\ Inv3
 
 Inv4 ==
@@ -197,5 +197,5 @@ Safety_precondition == TypeOkay /\ Inv3 /\ Inv4
 
 =============================================================================
 \* Modification History
-\* Last modified Tue Nov 29 19:00:06 PST 2022 by nano
+\* Last modified Tue Nov 29 19:58:36 PST 2022 by nano
 \* Created Sun May 22 18:34:58 PDT 2022 by nano
