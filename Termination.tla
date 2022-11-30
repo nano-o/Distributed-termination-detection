@@ -51,9 +51,9 @@ EXTENDS Integers, FiniteSets, Sequences
 \* P == {"P1_OF_P"}
 \* P == {"P1_OF_P", "P2_OF_P"}
 \* P == {"P1_OF_P", "P2_OF_P", "P3_OF_P"}
-P == {"P1_OF_P", "P2_OF_P", "P3_OF_P", "P4_OF_P"}
+\* P == {"P1_OF_P", "P2_OF_P", "P3_OF_P", "P4_OF_P"}
 \* NOTE: with 5 processes it takes around 1 minute on a powerful machine (powerful in 2022).
-\* P == {"P1_OF_P", "P2_OF_P", "P3_OF_P", "P4_OF_P", "P5_OF_P"}
+P == {"P1_OF_P", "P2_OF_P", "P3_OF_P", "P4_OF_P", "P5_OF_P"}
 \* NOTE: with 6 processes it takes around 25 minute on a powerful machine (powerful in 2022).
 \* P == {"P1_OF_P", "P2_OF_P", "P3_OF_P", "P4_OF_P", "P5_OF_P", "P6_OF_P"}
 
@@ -170,18 +170,18 @@ Inv2 == \A p,q \in P : r[<<p,q>>] <= s[<<q,p>>]
 Inv2_ == TypeOkay /\ Inv2
 
 Consistent(Q) ==
-  /\ Q \subseteq visited
-  /\ \A q1,q2 \in Q : S[<<q1,q2>>] = R[<<q2,q1>>]
+  \A q1,q2 \in Q : S[<<q1,q2>>] = R[<<q2,q1>>]
 
-\* If Q is consistent and a member of Q has received or sent more than what the daemon saw,
+\* If a set Q of visited nodes is consistent and a member of Q has received or sent more than what the daemon saw,
 \* then a message from outside Q that the daemon has not seen has been received:
 Inv3 == \A Q \in SUBSET visited :
-  (Consistent(Q) /\ \E p \in Q, q \in P : (r[<<p,q>>] # R[<<p,q>>] \/ s[<<p,q>>] # S[<<p,q>>]))
+  /\ Consistent(Q)
+  /\ \E p \in Q, q \in P : r[<<p,q>>] # R[<<p,q>>] \/ s[<<p,q>>] # S[<<p,q>>]
   => \E p \in Q, q \in P \ Q : r[<<p,q>>] > R[<<p,q>>]
 Inv3_ == TypeOkay /\ Inv1 /\ Inv2 /\ Inv3
 
 Inv4 ==
-  terminated => Consistent(P)
+  terminated => visited = P /\ Consistent(P)
 Inv4_ == TypeOkay /\ Inv4
 
 \* Then we check that Inv3 and Inv4 imply Safety by using
