@@ -88,7 +88,10 @@ NumPending(pq) ==
   IN
     s[<<p,q>>] - r[<<q, p>>]
 
-\* The correstness property: when the daemon terminates, there are no messages in flight (i.e. the distributed computation is finished):
+(***************************************************************************)
+(* The correstness property: when the daemon terminates, there are no      *)
+(* messages in flight (i.e.  the distributed computation is finished):     *)
+(***************************************************************************)
 Safety == terminated => \A p,q \in P : NumPending(<<p,q>>) = 0
 
 TypeOkay ==
@@ -103,9 +106,12 @@ TypeOkay ==
   /\  visited \in SUBSET P
   /\  terminated \in BOOLEAN
 
-\* Initially, no messages have been received and the daemon has not started
-\* visiting any nodes. However, there may be some messages in flight (otherwise
-\* nothing happens).
+(***************************************************************************)
+(* Initially, no messages have been received and the daemon has not        *)
+(* started visiting any nodes.  However, there may be some messages in     *)
+(* flight (otherwise nothing happens).                                     *)
+(***************************************************************************)
+
 Init ==
     /\ TypeOkay
     /\ r = [pq \in P\times P |-> 0]
@@ -150,15 +156,14 @@ Next == daemon
 vars == << s, r, S, R, visited, terminated >>
 Spec == Init /\ [][Next]_vars
 
-\* Test invariants
-Test1 == \neg terminated
+(***************************************************************************)
+(* Canary invariants                                                       *)
+(***************************************************************************)
+Canary1 == \neg terminated
 
-\* To keep counter-examples small, if needed:
-Bounds ==
-  /\  \A pq \in P\times P : s[pq] <= 1
-  /\  \A pq \in P\times P : r[pq] <= 1
-
-\* Candidate invariants
+(***************************************************************************)
+(* Invariants                                                              *)
+(***************************************************************************)
 
 \* Daemon receive counts are necessarily smaller than real receive counts:
 Inv1 == \A p,q \in P :
@@ -172,8 +177,11 @@ Inv2_ == TypeOkay /\ Inv2
 Consistent(Q) ==
   \A q1,q2 \in Q : S[<<q1,q2>>] = R[<<q2,q1>>]
 
-\* If a set Q of visited nodes is consistent and a member of Q has received or sent more than what the daemon saw,
-\* then a message from outside Q that the daemon has not seen has been received:
+(***************************************************************************)
+(* If a set Q of visited nodes is consistent and a member of Q has         *)
+(* received or sent more than what the daemon saw, then a message from     *)
+(* outside Q that the daemon has not seen has been received:               *)
+(***************************************************************************)
 Inv3 == \A Q \in SUBSET visited :
   /\ Consistent(Q)
   /\ \E p \in Q, q \in P : r[<<p,q>>] # R[<<p,q>>] \/ s[<<p,q>>] # S[<<p,q>>]
@@ -184,12 +192,13 @@ Inv4 ==
   terminated => visited = P /\ Consistent(P)
 Inv4_ == TypeOkay /\ Inv4
 
-\* Then we check that Inv3 and Inv4 imply Safety by using
-\* Safety_precondition as init predicate and checking that Safety holds
-\* in the initial state.
+(***************************************************************************)
+(* We check that Inv3 and Inv4 imply Safety by using Safety_precondition   *)
+(* as init predicate and checking that Safety holds in the initial state.  *)
+(***************************************************************************)
 Safety_precondition == TypeOkay /\ Inv3 /\ Inv4
 
 =============================================================================
 \* Modification History
-\* Last modified Tue Nov 29 10:58:29 PST 2022 by nano
+\* Last modified Tue Nov 29 19:00:06 PST 2022 by nano
 \* Created Sun May 22 18:34:58 PDT 2022 by nano
