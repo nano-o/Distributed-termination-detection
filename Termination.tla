@@ -49,8 +49,8 @@ EXTENDS Integers
 
 \* P == {"P1_OF_P"}
 \* P == {"P1_OF_P", "P2_OF_P"}
-\* P == {"P1_OF_P", "P2_OF_P", "P3_OF_P"}
-P == {"P1_OF_P", "P2_OF_P", "P3_OF_P", "P4_OF_P"}
+P == {"P1_OF_P", "P2_OF_P", "P3_OF_P"}
+\* P == {"P1_OF_P", "P2_OF_P", "P3_OF_P", "P4_OF_P"}
 \* NOTE: with 5 processes it takes around 1 minute on a powerful machine (powerful in 2022).
 \* P == {"P1_OF_P", "P2_OF_P", "P3_OF_P", "P4_OF_P", "P5_OF_P"}
 \* NOTE: with 6 processes it takes around 25 minute on a powerful machine (powerful in 2022).
@@ -77,19 +77,15 @@ VARIABLES
     terminated
 
 \* The number of messages in flight from p to q:
-\* @type: (<<P,P>>) => Int;
-NumPending(pq) ==
-  LET
-    p == pq[1]
-    q == pq[2]
-  IN
-    s[<<p,q>>] - r[<<q, p>>]
+\* @type: (P, P) => Int;
+NumPending(p, q) ==
+    s[<<p,q>>] - r[<<q,p>>]
 
 (***************************************************************************)
 (* The correstness property: when the daemon terminates, there are no      *)
 (* messages in flight (i.e.  the distributed computation is finished):     *)
 (***************************************************************************)
-Safety == terminated => \A p,q \in P : NumPending(<<p,q>>) = 0
+Safety == terminated => \A p,q \in P : NumPending(p,q) = 0
 
 TypeOkay ==
   /\  s \in [P\times P -> Int]
@@ -110,8 +106,8 @@ TypeOkay ==
 (***************************************************************************)
 
 Init ==
-    /\ TypeOkay
-    /\ s \in [P\times P -> Int] \* we repeat this for clarity
+    /\ s \in [P\times P -> Int]
+    /\ \A pq \in P\times P : s[pq] >= 0
     /\ r = [pq \in P\times P |-> 0]
     /\ ds = [pq \in P\times P |-> 0]
     /\ dr = [pq \in P\times P |-> 0]
@@ -124,7 +120,7 @@ Init ==
 (***************************************************************************)
 process(self) ==
   /\ \E p \in P \ {self} : \* receive a message from p
-      /\ NumPending(<<p,self>>) > 0
+      /\ NumPending(p,self) > 0
       /\ r' = [r EXCEPT ![<<self,p>>] =  @ + 1]
   /\ \E Q \in SUBSET (P \ {self}): \* send messages to set Q
      /\ s' = [t \in P\times P |->
@@ -139,7 +135,7 @@ process(self) ==
 daemon ==
         /\ \neg terminated
         /\ IF visited # P \/ \E p,q \in visited : ds[<<p,q>>] # dr[<<q,p>>]
-              THEN /\ \E p \in P: \* visit p
+              THEN /\ \E p \in P: \* pick a process p to visit
                         /\ ds' = [t \in P\times P |-> IF t[1] = p THEN s[t] ELSE ds[t]]
                         /\ dr' = [t \in P\times P |-> IF t[1] = p THEN r[t] ELSE dr[t]]
                         /\ visited' = (visited \union {p})
