@@ -57,16 +57,16 @@ P == {"P1_OF_P", "P2_OF_P", "P3_OF_P"}
 \* P == {"P1_OF_P", "P2_OF_P", "P3_OF_P", "P4_OF_P", "P5_OF_P", "P6_OF_P"}
 
 VARIABLES
-    \* s[<<p,q>>] is the number of messages sent by p to q as counted by p:
+    \* s[<<p,q>>] is the number of messages sent on channel <<p,q>>, i.e. by p to q as counted by p:
     \* @type: <<P,P>> -> Int;
     s,
-    \* r[<<p,q>>] is the number of messages received by p from q as counted by p
+    \* r[<<p,q>>] is the number of messages received on channel <<p,q>>, i.e. by q from p as counted by q
     \* @type: <<P,P>> -> Int;
     r,
     \* ds[<<p,q>>] is the number of messages sent by p to q as recorded by the daemon in its last visit to p:
     \* @type: <<P,P>> -> Int;
     ds,
-    \* dr[<<p,q>>] is the number of messages received by p from q as recorded by the daemon in its last visit to p:
+    \* dr[<<p,q>>] is the number of messages received by q from p as recorded by the daemon in its last visit to q:
     \* @type: <<P,P>> -> Int;
     dr,
     \* visited is the set of processes that the daemon visited so far:
@@ -79,7 +79,7 @@ VARIABLES
 \* The number of messages in flight from p to q:
 \* @type: (P, P) => Int;
 NumPending(p, q) ==
-    s[<<p,q>>] - r[<<q,p>>]
+    s[<<p,q>>] - r[<<p,q>>]
 
 (***************************************************************************)
 (* The correstness property: when the daemon terminates, there are no      *)
@@ -108,6 +108,7 @@ TypeOkay ==
 Init ==
     /\ s \in [P\times P -> Int]
     /\ \A pq \in P\times P : s[pq] >= 0
+    /\ \E pq \in P\times P : s[pq] > 0
     /\ r = [pq \in P\times P |-> 0]
     /\ ds = [pq \in P\times P |-> 0]
     /\ dr = [pq \in P\times P |-> 0]
@@ -121,7 +122,7 @@ Init ==
 process(self) ==
   /\ \E p \in P \ {self} : \* receive a message from p
       /\ NumPending(p,self) > 0
-      /\ r' = [r EXCEPT ![<<self,p>>] =  @ + 1]
+      /\ r' = [r EXCEPT ![<<p,self>>] =  @ + 1]
   /\ \E Q \in SUBSET (P \ {self}): \* send messages to set Q
      /\ s' = [t \in P\times P |->
           IF t[1] = self /\ t[2] \in Q THEN s[t]+1 ELSE s[t]]
@@ -133,11 +134,10 @@ process(self) ==
 (* visit a new process                                                     *)
 (***************************************************************************)
 daemon ==
-        /\ \neg terminated
-        /\ IF visited # P \/ \E p,q \in visited : ds[<<p,q>>] # dr[<<q,p>>]
+        /\ IF visited # P \/ \E p,q \in visited : ds[<<p,q>>] # dr[<<p,q>>]
               THEN /\ \E p \in P: \* pick a process p to visit
                         /\ ds' = [t \in P\times P |-> IF t[1] = p THEN s[t] ELSE ds[t]]
-                        /\ dr' = [t \in P\times P |-> IF t[1] = p THEN r[t] ELSE dr[t]]
+                        /\ dr' = [t \in P\times P |-> IF t[2] = p THEN r[t] ELSE dr[t]]
                         /\ visited' = (visited \union {p})
                         /\ UNCHANGED terminated
               ELSE /\ terminated' = TRUE \* declare termination
@@ -159,16 +159,17 @@ Canary1 == \neg terminated
 (***************************************************************************)
 
 \* Daemon receive counts are necessarily smaller than real receive counts:
+\* TODO: Inv1 is unnecessary
 Inv1 == \A p,q \in P :
   /\  dr[<<p,q>>] <= r[<<p,q>>]
 Inv1_ == TypeOkay /\ Inv1
 
 \* A process cannot receive more than has been sent to it:
-Inv2 == \A p,q \in P : r[<<p,q>>] <= s[<<q,p>>]
+Inv2 == \A p,q \in P : r[<<p,q>>] <= s[<<p,q>>]
 Inv2_ == TypeOkay /\ Inv2
 
 Consistent(Q) ==
-  \A q1,q2 \in Q : ds[<<q1,q2>>] = dr[<<q2,q1>>]
+  \A p,q \in Q : ds[<<p,q>>] = dr[<<p,q>>]
 
 (***************************************************************************)
 (* If a set Q of visited nodes is consistent and a member of Q has         *)
@@ -177,9 +178,9 @@ Consistent(Q) ==
 (***************************************************************************)
 Inv3 == \A Q \in SUBSET visited :
   /\ Consistent(Q)
-  /\ \E p \in Q, q \in P : r[<<p,q>>] # dr[<<p,q>>] \/ s[<<p,q>>] # ds[<<p,q>>]
-  => \E p \in Q, q \in P \ Q : r[<<p,q>>] > dr[<<p,q>>]
-Inv3_ == TypeOkay /\ Inv1 /\ Inv2 /\ Inv3
+  /\ \E p \in Q, q \in P : r[<<q,p>>] # dr[<<q,p>>] \/ s[<<p,q>>] # ds[<<p,q>>]
+  => \E p \in Q, q \in P \ Q : r[<<q,p>>] > dr[<<q,p>>]
+Inv3_ == TypeOkay /\ Inv2 /\ Inv3
 
 Inv4 ==
   terminated => visited = P /\ Consistent(P)
