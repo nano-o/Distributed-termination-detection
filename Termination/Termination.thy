@@ -27,9 +27,8 @@ definition receive_step where
     \<and> (\<exists> P . \<comment> \<open>We pick a set P of processes to send messages to.\<close>
         \<exists> s_p' . s_p' = (\<lambda> q .
             let s_p_q = ((c\<cdot>s) p q)
-            in if q \<in> P - {p} then s_p_q + 1 else s_p_q)
-    \<comment> \<open>Note, above, that a process doesn't send a message to itself.\<close>
-    \<comment> \<open>Now we describe the new state:\<close>
+            in if q \<in> P then s_p_q + 1 else s_p_q)
+    \<comment> \<open>The new state:\<close>
         \<and> c' = c<s := (c\<cdot>s)(p:=s_p'), r := (c\<cdot>r)(p:=((c\<cdot>r) p)(q := (c\<cdot>r) p q + 1))>)"
 
 definition daemon_step where
