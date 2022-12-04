@@ -133,8 +133,10 @@ process(self) ==
 (* a pair whose message counts, as recorded by the daemon, do not match,   *)
 (* visit a new process                                                     *)
 (***************************************************************************)
+Consistent(Q) ==
+  \A p,q \in Q : ds[<<p,q>>] = dr[<<p,q>>]
 daemon ==
-        /\ IF visited # P \/ \E p,q \in visited : ds[<<p,q>>] # dr[<<p,q>>]
+        /\ IF visited # P \/ \neg Consistent(P)
               THEN /\ \E p \in P: \* pick a process p to visit
                         /\ ds' = [t \in P\times P |-> IF t[1] = p THEN s[t] ELSE ds[t]]
                         /\ dr' = [t \in P\times P |-> IF t[2] = p THEN r[t] ELSE dr[t]]
@@ -158,39 +160,31 @@ Canary1 == \neg terminated
 (* Invariants                                                              *)
 (***************************************************************************)
 
-\* Daemon receive counts are necessarily smaller than real receive counts:
-\* TODO: Inv1 is unnecessary
-Inv1 == \A p,q \in P :
-  /\  dr[<<p,q>>] <= r[<<p,q>>]
-Inv1_ == TypeOkay /\ Inv1
-
 \* A process cannot receive more than has been sent to it:
-Inv2 == \A p,q \in P : r[<<p,q>>] <= s[<<p,q>>]
-Inv2_ == TypeOkay /\ Inv2
-
-Consistent(Q) ==
-  \A p,q \in Q : ds[<<p,q>>] = dr[<<p,q>>]
+Inv1 == \A p,q \in P : r[<<p,q>>] <= s[<<p,q>>]
+Inv1_ == TypeOkay /\ Inv1
 
 (***************************************************************************)
 (* If a set Q of visited nodes is consistent and a member of Q has         *)
 (* received or sent more than what the daemon saw, then a message from     *)
 (* outside Q that the daemon has not seen has been received:               *)
 (***************************************************************************)
-Inv3 == \A Q \in SUBSET visited :
-  /\ Consistent(Q)
-  /\ \E p \in Q, q \in P : r[<<q,p>>] # dr[<<q,p>>] \/ s[<<p,q>>] # ds[<<p,q>>]
-  => \E p \in Q, q \in P \ Q : r[<<q,p>>] > dr[<<q,p>>]
-Inv3_ == TypeOkay /\ Inv2 /\ Inv3
+Stale(Q) ==
+  \E p \in Q, q \in P :
+    \/ r[<<q,p>>] # dr[<<q,p>>]
+    \/ s[<<p,q>>] # ds[<<p,q>>]
+Inv2 == \A Q \in SUBSET visited : Consistent(Q) /\ Stale(Q) => \E p \in Q, q \in P \ Q : r[<<q,p>>] > dr[<<q,p>>]
+Inv2_ == TypeOkay /\ Inv1 /\ Inv2
 
-Inv4 ==
+Inv3 ==
   terminated => visited = P /\ Consistent(P)
-Inv4_ == TypeOkay /\ Inv4
+Inv3_ == TypeOkay /\ Inv3
 
 (***************************************************************************)
-(* We check that Inv3 and Inv4 imply Safety by using Safety_precondition   *)
+(* We check that Inv2 and Inv3 imply Safety by using Safety_precondition   *)
 (* as init predicate and checking that Safety holds in the initial state.  *)
 (***************************************************************************)
-Safety_precondition == TypeOkay /\ Inv3 /\ Inv4
+Safety_precondition == TypeOkay /\ Inv2 /\ Inv3
 
 =============================================================================
 \* Modification History
