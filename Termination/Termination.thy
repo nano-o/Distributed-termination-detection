@@ -75,7 +75,7 @@ proof -
   moreover 
   have "inv1 c'" if "daemon_step c c' p" and "inv1 c" for p
     using that unfolding daemon_step_def inv1_def
-    by (auto split:if_splits)
+    by (auto split:if_split_asm)
   ultimately show ?thesis
     using assms step_def by blast
 qed
@@ -93,6 +93,9 @@ lemma inv2_init:
   using assms
   unfolding init_def inv2_def consistent_def
   by auto
+
+(*declare if_splits[split]*)
+declare Let_def[simp]
 
 lemma inv2_step:
   assumes "step c c'" and "inv1 c" and "inv1 c'" and "inv2 c"
@@ -161,7 +164,7 @@ So, because we assume that the count of at least one process in Q changes, it mu
         case True
         then show ?thesis
         proof -
-          { assume "p \<notin> Q" \<comment> \<open>The daemon visits a process not in Q\<close>
+          { assume "p \<notin> Q" \<comment> \<open>The daemon visits a process not in Q. Then it's trivial.\<close>
             have "\<exists> p \<in> Q . \<exists> q \<in> -Q . (c\<cdot>r) p q > (c\<cdot>R) p q"
             proof -
               from \<open>p\<notin>Q\<close> have "consistent c Q" and "stale c Q"
@@ -176,7 +179,7 @@ So, because we assume that the count of at least one process in Q changes, it mu
           moreover
           { assume "p \<in> Q" \<comment> \<open>The daemon visits a process in Q\<close>
             define Q' where "Q' \<equiv> Q - {p}"
-          text \<open>First we show that @{term Q'} is consistent but stale.
+            text \<open>First we show that @{term Q'} is consistent but stale.
               So, by @{thm \<open>inv2 c\<close>}, the daemon missed a message from outside @{term Q'}.
               Then it remains to show that this message did not come from @{term p}\<close>
             obtain p' q where "p' \<in> Q'" and "q \<in> -Q'" and "(c'\<cdot>r) p' q > (c'\<cdot>R) p' q"
