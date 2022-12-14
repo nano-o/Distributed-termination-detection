@@ -47,37 +47,23 @@
 
 EXTENDS Integers
 
-\* P == {"P1_OF_P"}
-\* P == {"P1_OF_P", "P2_OF_P"}
-P == {"P1_OF_P", "P2_OF_P", "P3_OF_P"}
-\* P == {"P1_OF_P", "P2_OF_P", "P3_OF_P", "P4_OF_P"}
-\* NOTE: with 5 processes it takes around 1 minute on a powerful machine (powerful in 2022).
-\* P == {"P1_OF_P", "P2_OF_P", "P3_OF_P", "P4_OF_P", "P5_OF_P"}
-\* NOTE: with 6 processes it takes around 25 minute on a powerful machine (powerful in 2022).
-\* P == {"P1_OF_P", "P2_OF_P", "P3_OF_P", "P4_OF_P", "P5_OF_P", "P6_OF_P"}
+CONSTANT P
 
 VARIABLES
     \* s[<<p,q>>] is the number of messages sent on channel <<p,q>>, i.e. by p to q as counted by p:
-    \* @type: <<P,P>> -> Int;
     s,
     \* r[<<p,q>>] is the number of messages received on channel <<p,q>>, i.e. by q from p as counted by q
-    \* @type: <<P,P>> -> Int;
     r,
     \* ds[<<p,q>>] is the number of messages sent by p to q as recorded by the daemon in its last visit to p:
-    \* @type: <<P,P>> -> Int;
     ds,
     \* dr[<<p,q>>] is the number of messages received by q from p as recorded by the daemon in its last visit to q:
-    \* @type: <<P,P>> -> Int;
     dr,
     \* visited is the set of processes that the daemon visited so far:
-    \* @type: Set(P);
     visited,
     \* terminated is set to TRUE when the daemon terminates
-    \* @type: Bool;
     terminated
 
 \* The number of messages in flight from p to q:
-\* @type: (P, P) => Int;
 NumPending(p, q) ==
     s[<<p,q>>] - r[<<p,q>>]
 
