@@ -30,17 +30,18 @@ of a proof pearl.
 
 [`Termination.tla`](Termination.tla) contains both the specification of the
 algorithm and an inductive invariant that proves its safety.
-
-The specification is annotated for model-checking with Apalache, which is able
-to prove all the invariants inductive for 6 processes.
+[`TerminationApalache.tla`] fixes the number of processes and adds type
+annotations for model-checking with Apalache, which is able to prove the that
+the invariants inductive and that they imply the safety property for up to 6
+processes (on a recent desktop machine).
 
 By convention, an invariant of the form `Inv` (e.g. `Inv1`) is inductive
 relative to `Inv_` (e.g. `Inv1_`). Moreover, the safety property is implied by
-invariants the conjunction of invariants 1 and 2.
+the conjunction of invariants 1 and 2.
 
-To check the whole proof, use `check_proof.sh` To check that e.g. `Inv1` is
-inductive relative to `Inv1_` with Apalache, use `check_invariant Inv1
-Termination.tla`
+To check the whole proof, use `./check_proof.sh` To check that e.g. `Inv1` is
+inductive relative to `Inv1_` with Apalache, use `./check_invariant Inv1
+TerminationApalache.tla`
 
 We also prove the algorithm correct for any number of processes using
 Isabelle/HOL. You can browse the proof at
