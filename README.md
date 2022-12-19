@@ -43,6 +43,11 @@ To check the whole proof, use `./check_proof.sh` To check that e.g. `Inv1` is
 inductive relative to `Inv1_` with Apalache, use `./check_invariant Inv1
 TerminationApalache.tla`
 
+[`Termination_proof.tla`](Termination_proof.tla) contains an interactive proof
+showing that the specification implies the invariants and the safety property,
+for an arbitrary set of processes. The proof is checked by TLAPS, the TLA+ Proof
+System, and it is very similar to the Isabelle proof described below.
+
 We also prove the algorithm correct for any number of processes using
 Isabelle/HOL. You can browse the proof at
 [`Termination/browser_info/index.html`](https://htmlpreview.github.io/?https://raw.githubusercontent.com/nano-o/Distributed-termination-detection/master/Termination/browser_info/Termination.html).
