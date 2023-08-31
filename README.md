@@ -1,4 +1,4 @@
-# Distributed termination detection -- verified with Apalache and Isabelle/HOL
+# Distributed termination detection -- verified with Apalache, Isabelle/HOL, and TLAPS
 
 Distributed termination detection of a message-driven computation.  A set of
 processes exchange messages.  Initialy there are a few message in the network.
