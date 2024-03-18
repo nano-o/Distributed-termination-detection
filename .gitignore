@@ -2,6 +2,7 @@
 *
 
 !*.md
+!*.pdf
 
 ## Whitelist .gitignore
 !.gitignore
