@@ -73,7 +73,7 @@ NumPending(p, q) ==
 (***************************************************************************)
 Safety == terminated => \A p,q \in P : NumPending(p,q) = 0
 
-TypeOkay ==
+TypeOK ==
   /\  s \in [P\times P -> Int]
   /\  \A pq \in P\times P : s[pq] >= 0
   /\  r \in [P\times P -> Int]
@@ -148,7 +148,7 @@ Canary1 == \neg terminated
 
 \* A process cannot receive more than has been sent to it:
 Inv1 == \A p,q \in P : r[<<p,q>>] <= s[<<p,q>>]
-Inv1_ == TypeOkay /\ Inv1
+Inv1_ == TypeOK /\ Inv1
 
 (***************************************************************************)
 (* If a set Q of visited nodes is consistent and a member of Q has         *)
@@ -160,17 +160,17 @@ Stale(Q) ==
     \/ r[<<q,p>>] # dr[<<q,p>>]
     \/ s[<<p,q>>] # ds[<<p,q>>]
 Inv2 == \A Q \in SUBSET visited : Consistent(Q) /\ Stale(Q) => \E p \in Q, q \in P \ Q : r[<<q,p>>] > dr[<<q,p>>]
-Inv2_ == TypeOkay /\ Inv1 /\ Inv2
+Inv2_ == TypeOK /\ Inv1 /\ Inv2
 
 Inv3 ==
   terminated => visited = P /\ Consistent(P)
-Inv3_ == TypeOkay /\ Inv3
+Inv3_ == TypeOK /\ Inv3
 
 (***************************************************************************)
 (* We check that Inv2 and Inv3 imply Safety by using Safety_precondition   *)
 (* as init predicate and checking that Safety holds in the initial state.  *)
 (***************************************************************************)
-Safety_precondition == TypeOkay /\ Inv2 /\ Inv3
+Safety_precondition == TypeOK /\ Inv2 /\ Inv3
 
 =============================================================================
 \* Modification History

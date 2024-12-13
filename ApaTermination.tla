@@ -1,4 +1,4 @@
-------------------- MODULE TerminationApalache -------------------
+------------------- MODULE ApaTermination -------------------
 
 P == {"P1_OF_P", "P2_OF_P", "P3_OF_P"}
 \* P == {"P1_OF_P", "P2_OF_P", "P3_OF_P", "P4_OF_P"}
