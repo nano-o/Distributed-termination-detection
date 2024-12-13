@@ -4,13 +4,17 @@ We formalize and prove correct a simple distributed algorithm using an
 inductive invariant. This is a proof pearl that is a great example of
 inductive reasoning in distributed algorithms.
 
-The algorithm detects the termination of of a message-driven computation.  We
-have a set of processes exchange messages.  Initialy there are a few messages
+The algorithm detects the termination of a message-driven computation.  We
+have a set of processes that exchange messages.  Initialy there is one message
 in the network. A process can receive a messages and send 0, 1, or more
 messages as a response, in a single atomic step.  A daemon visits arbitrary
-processes one by one, each time noting how many messages the process has sent to each
-other process, and how many it has received from each other process.  When the daemon
-sees that all numbers match, it declares that the system has terminated.
+processes one by one, each time noting how many messages the process has sent
+to each other process, and how many it has received from each other process.
+When the daemon sees that all numbers match, it declares that the system has
+terminated.
+
+What we want to prove is that the daemon is always right (i.e. if it declares
+termination, then there are no more messges in flight).
 
 This is the algorithm described in Section 4 of: Kumar, Devendra.  *A class of
 termination detection algorithms for distributed computations.* International
@@ -63,3 +67,7 @@ The actual theory file (which must be opened using
 The PlusCal language allows writing specifications in a more procedural style than in TLA+, and it transpiles to TLA+.
 [`TerminationPlusCal.tla`](TerminationPlusCal.tla) contains PlusCal version of the specification.
 To transpile to TLA+, run `make transpile`. Note that this will modify the file in place.
+
+## Typesetting
+
+You can also produce PDF versions of the specifications using `make typeset`

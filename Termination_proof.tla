@@ -7,13 +7,13 @@ EXTENDS Termination, TLAPS
 (*                                                                         *)
 (* We start by proving type correctness.                                   *)
 (***************************************************************************)
-LEMMA TypeCorrect == Spec => []TypeOkay
-<1>1. Init => TypeOkay
-  BY Isa DEF Init, TypeOkay
-<1>2. TypeOkay /\ [Next]_vars => TypeOkay'
-  <2> SUFFICES ASSUME TypeOkay,
+LEMMA TypeCorrect == Spec => []TypeOK
+<1>1. Init => TypeOK
+  BY Isa DEF Init, TypeOK
+<1>2. TypeOK /\ [Next]_vars => TypeOK'
+  <2> SUFFICES ASSUME TypeOK,
                       [Next]_vars
-               PROVE  TypeOkay'
+               PROVE  TypeOK'
     OBVIOUS
   <2>1. CASE daemon
     <3>1. CASE visited # P \/ ~ Consistent(P)
@@ -23,16 +23,16 @@ LEMMA TypeCorrect == Spec => []TypeOkay
               /\ visited' = (visited \union {p})
               /\ UNCHANGED <<terminated, s, r>>
         BY <2>1, <3>1, Zenon DEF daemon
-      <4>. QED  BY DEF TypeOkay
+      <4>. QED  BY DEF TypeOK
     <3>2. CASE ~(visited # P \/ ~ Consistent(P))
-      BY <2>1, <3>2 DEF daemon, TypeOkay
+      BY <2>1, <3>2 DEF daemon, TypeOK
     <3>. QED  BY <3>1, <3>2
   <2>2. ASSUME NEW p \in P,
                process(p)
-        PROVE  TypeOkay'
-    BY <2>2 DEF process, TypeOkay
+        PROVE  TypeOK'
+    BY <2>2 DEF process, TypeOK
   <2>3. CASE UNCHANGED vars
-    BY <2>3 DEF vars, TypeOkay
+    BY <2>3 DEF vars, TypeOK
   <2>4. QED
     BY <2>1, <2>2, <2>3 DEF Next
 <1>. QED  BY <1>1, <1>2, PTL DEF Spec
@@ -44,13 +44,13 @@ LEMMA TypeCorrect == Spec => []TypeOkay
 LEMMA Invariant1 == Spec => []Inv1
 <1>1. Init => Inv1
   BY DEF Init, Inv1
-<1>2. TypeOkay /\ TypeOkay' /\ Inv1 /\ [Next]_vars => Inv1'
-  <2> SUFFICES ASSUME TypeOkay, TypeOkay',
+<1>2. TypeOK /\ TypeOK' /\ Inv1 /\ [Next]_vars => Inv1'
+  <2> SUFFICES ASSUME TypeOK, TypeOK',
                       Inv1,
                       [Next]_vars
                PROVE  Inv1'
     OBVIOUS
-  <2>. USE DEF TypeOkay, Inv1
+  <2>. USE DEF TypeOK, Inv1
   <2>1. CASE daemon
     BY <2>1 DEF daemon
   <2>2. ASSUME NEW self \in P,
@@ -92,14 +92,14 @@ LEMMA Invariant1 == Spec => []Inv1
 LEMMA Invariant2 == Spec => []Inv2
 <1>1. Init => Inv2
   BY DEF Init, Inv2, Stale
-<1>2. TypeOkay /\ TypeOkay' /\ Inv1 /\ Inv2 /\ [Next]_vars => Inv2'
-  <2> SUFFICES ASSUME TypeOkay, TypeOkay',
+<1>2. TypeOK /\ TypeOK' /\ Inv1 /\ Inv2 /\ [Next]_vars => Inv2'
+  <2> SUFFICES ASSUME TypeOK, TypeOK',
                       Inv1,
                       Inv2,
                       [Next]_vars
                PROVE  Inv2'
     OBVIOUS
-  <2>. USE DEF TypeOkay
+  <2>. USE DEF TypeOK
   <2>1. CASE daemon
     <3>1. CASE visited # P \/ ~ Consistent(P)
       <4>1. PICK self \in P :
@@ -213,16 +213,16 @@ LEMMA Invariant2 == Spec => []Inv2
 LEMMA Invariant3 == Spec => []Inv3
 <1>1. Init => Inv3
   BY DEF Init, Inv3
-<1>2. TypeOkay /\ Inv3 /\ [Next]_vars => Inv3'
-  BY Zenon DEF TypeOkay, Inv3, Next, daemon, process, vars, Consistent
+<1>2. TypeOK /\ Inv3 /\ [Next]_vars => Inv3'
+  BY Zenon DEF TypeOK, Inv3, Next, daemon, process, vars, Consistent
 <1>. QED  BY <1>1, <1>2, TypeCorrect, PTL DEF Spec
 
 (***************************************************************************)
 (* Finally, infer that the algorithm satisfies the safety condition.       *)
 (***************************************************************************)
 THEOREM Spec => []Safety
-<1>. TypeOkay /\ Inv2 /\ Inv3 => Safety
-  <2>. SUFFICES ASSUME TypeOkay, Inv2, Inv3, terminated, 
+<1>. TypeOK /\ Inv2 /\ Inv3 => Safety
+  <2>. SUFFICES ASSUME TypeOK, Inv2, Inv3, terminated, 
                        NEW p \in P, NEW q \in P
                 PROVE  s[<<p,q>>] - r[<<p,q>>] = 0
     BY Zenon DEF Safety, NumPending
@@ -234,7 +234,7 @@ THEOREM Spec => []Safety
     BY <2>1, Zenon DEF Inv2
   <2>4. s[<<p,q>>] = ds[<<p,q>>] /\ r[<<p,q>>] = dr[<<p,q>>]
     BY <2>3 DEF Stale
-  <2>. QED  BY <2>2, <2>4 DEF TypeOkay
+  <2>. QED  BY <2>2, <2>4 DEF TypeOK
 <1>. QED  BY TypeCorrect, Invariant2, Invariant3, PTL
 
 =============================================================================

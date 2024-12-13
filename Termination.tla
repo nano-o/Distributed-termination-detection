@@ -1,49 +1,29 @@
 ------------------------ MODULE Termination ------------------------
 
-(***************************************************************************)
-(* Distributed termination detection of a message-driven computation.  A   *)
-(* set of processes exchange messages.  Initialy there is one message in   *)
-(* the network.  A process can receive a messages and send 0, 1, or more   *)
-(* messages as a response in a single atomic step.  A daemon visits        *)
-(* arbitrary nodes one by one, each time noting how many messages the node *)
-(* has sent to each other node, and how many it has received from each     *)
-(* other node.  When the daemon sees that all numbers match, it declares   *)
-(* that the system has terminated.                                         *)
-(*                                                                         *)
-(* This is the algorithm described in Section 4 of: Kumar, Devendra.  A    *)
-(* class of termination detection algorithms for distributed computations. *)
-(* International Conference on Foundations of Software Technology and      *)
-(* Theoretical Computer Science.  Springer, Berlin, Heidelberg, 1985.      *)
-(*                                                                         *)
-(* The algorithm can also be found in : Mattern, Friedemann.  Algorithms   *)
-(* for distributed termination detection.  Distributed computing 2.3       *)
-(* (1987): 161-175.  In this paper, the algorithm is called the Channel    *)
-(* Counting Algorithm and is described in Section 7.                       *)
-(*                                                                         *)
-(* The original, operational proof is a little mind-bending (the principle *)
-(* is illustrated in Figure 8, Section 6, of Algorithms for distributed    *)
-(* termination detection.).  Instead, `Termination.tla` shows that there   *)
-(* is a relatively simple inductive invariant that proves the correctness  *)
-(* of the algorithm.  So this kind of a proof pearl.                       *)
-(*                                                                         *)
-(* `Termination.tla` contains both the specification of the algorithm and  *)
-(* an inductive invariant that proves safety.                              *)
-(*                                                                         *)
-(* The specification is annotated for model-checking with Apalache, which  *)
-(* is able to prove all the invariants inductive for 5 processes.          *)
-(*                                                                         *)
-(* By convention, an invariant of the form `InvN` (e.g.  `Inv1`) is        *)
-(* inductive relative to `InvN_` (e.g.  `Inv1_`).  So, to check that       *)
-(* `Inv1_` is inductive with Apalache, run:                                *)
-(*                                                                         *)
-(*     $APALACHE_HOME/script/run-docker.sh check --init=Inv1_ --inv=Inv1 --length=1 Termination.tla *)
-(*                                                                         *)
-(* To check the main safety property, we check that the invariants imply   *)
-(* it:                                                                     *)
-(*                                                                         *)
-(*     $APALACHE_HOME/script/run-docker.sh check --init=Safety_precondition --inv=Safety --length=0 Termination.tla *)
-(*                                                                         *)
-(***************************************************************************)
+(**************************************************************************************)
+(* Distributed termination detection of a message-driven computation.  A              *)
+(* set of processes exchange messages.  Initialy there is one message in              *)
+(* the network.  A process can receive a messages and send 0, 1, or more              *)
+(* messages as a response in a single atomic step.  A daemon visits                   *)
+(* arbitrary nodes one by one, each time noting how many messages the node            *)
+(* has sent to each other node, and how many it has received from each                *)
+(* other node.  When the daemon sees that all numbers match, it declares              *)
+(* that the system has terminated.                                                    *)
+(*                                                                                    *)
+(* This is the algorithm described in Section 4 of: Kumar, Devendra.  A               *)
+(* class of termination detection algorithms for distributed computations.            *)
+(* International Conference on Foundations of Software Technology and                 *)
+(* Theoretical Computer Science.  Springer, Berlin, Heidelberg, 1985.                 *)
+(*                                                                                    *)
+(* The algorithm can also be found in : Mattern, Friedemann.  Algorithms              *)
+(* for distributed termination detection.  Distributed computing 2.3                  *)
+(* (1987): 161-175.  In this paper, the algorithm is called the Channel               *)
+(* Counting Algorithm and is described in Section 7.                                  *)
+(*                                                                                    *)
+(* The original, operational proof is a little mind-bending (the principle            *)
+(* is illustrated in Figure 8, Section 6, of Algorithms for distributed               *)
+(* termination detection.)                                                            *)
+(**************************************************************************************)
 
 EXTENDS Integers
 
@@ -85,17 +65,19 @@ TypeOK ==
   /\  visited \in SUBSET P
   /\  terminated \in BOOLEAN
 
-(***************************************************************************)
-(* Initially, no messages have been received and the daemon has not        *)
-(* started visiting any nodes.  However, there may be some messages in     *)
-(* flight (otherwise nothing happens).                                     *)
-(***************************************************************************)
+(**************************************************************************************)
+(* Initially, no messages have been received and the daemon has not started           *)
+(* visiting any nodes.  However, one process has sent a message (otherwise nothing    *)
+(* happens).                                                                          *)
+(**************************************************************************************)
 
 Init ==
     /\ s \in [P\times P -> Int]
-    /\ \A pq \in P\times P : s[pq] >= 0
-    /\ \E pq \in P\times P : s[pq] > 0
-    /\ r = [pq \in P\times P |-> 0]
+    /\ \E pq \in P\times P :
+        /\ s[pq] = 1
+        /\ \A rs \in P\times P : rs # pq => s[rs] = 0
+    /\ r = [pq \in P\times P |-> 0] \* no message received so far
+    \* Daemon state:
     /\ ds = [pq \in P\times P |-> 0]
     /\ dr = [pq \in P\times P |-> 0]
     /\ visited = {}
@@ -170,9 +152,6 @@ Inv3_ == TypeOK /\ Inv3
 (* We check that Inv2 and Inv3 imply Safety by using Safety_precondition   *)
 (* as init predicate and checking that Safety holds in the initial state.  *)
 (***************************************************************************)
-Safety_precondition == TypeOK /\ Inv2 /\ Inv3
+Safety_ == TypeOK /\ Inv2 /\ Inv3
 
 =============================================================================
-\* Modification History
-\* Last modified Tue Nov 29 19:58:36 PST 2022 by nano
-\* Created Sun May 22 18:34:58 PDT 2022 by nano
