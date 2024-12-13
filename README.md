@@ -3,7 +3,7 @@
 We formalize a simple distributed algorithm and we set up the Apalache
 model-checker to facilitate searching for an inductive invariant that implies
 the safety property of the algorithm. This is a great exercise in inductive
-reasoning. The solution appears in the master branch, but you should try to
+reasoning. The solution appears in the main branch, but you should try to
 find it yourself. Note that you should have working knowledge of TLA+ to do the
 exercise.
 
