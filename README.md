@@ -7,14 +7,17 @@ reasoning. The solution appears in the master branch, but you should try to
 find it yourself. Note that you should have working knowledge of TLA+ to do the
 exercise.
 
-The algorithm detects the termination of of a message-driven computation.  We
-have a set of processes exchange messages.  Initialy there are a few messages
+The algorithm detects the termination of a message-driven computation.  We
+have a set of processes that exchange messages.  Initialy there is one message
 in the network. A process can receive a messages and send 0, 1, or more
 messages as a response, in a single atomic step.  A daemon visits arbitrary
 processes one by one, each time noting how many messages the process has sent
 to each other process, and how many it has received from each other process.
 When the daemon sees that all numbers match, it declares that the system has
 terminated.
+
+What we want to prove is that the daemon is always right (i.e. if it declares
+termination, then there are no more messges in flight).
 
 This is the algorithm described in Section 4 of: Kumar, Devendra.  *A class of
 termination detection algorithms for distributed computations.* International
@@ -52,6 +55,9 @@ The goal of the exercise is to strengthen `Safety` until it becomes inductive.
 To help you find what to add to `Safety` to make it inductive, run `make verify` and then `./show_cti.sh`.
 If `Safety` is not inductive, this will display the counterexample to induction found by Apalache.
 You then need to strenghten `Safety` so as to rule out the pre-state.
+
+You can change the number of processes for which Apalache checks the property
+by editing [`ApaTermination.tla`](ApaTermination.tla).
 
 ## PlusCal version of the specification
 
