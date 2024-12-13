@@ -1,6 +1,0 @@
-session Termination = "HOL-Statespace" +
-  options [document = pdf, document_output = "output", browser_info = true]
-  theories
-    Termination
-  document_files
-    "root.tex"
