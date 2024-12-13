@@ -19,18 +19,18 @@ terminated.
 What we want to prove is that the daemon is always right (i.e. if it declares
 termination, then there are no more messges in flight).
 
-This is the algorithm described in Section 4 of: Kumar, Devendra.  *A class of
-termination detection algorithms for distributed computations.* International
-Conference on Foundations of Software Technology and Theoretical Computer
-Science.  Springer, Berlin, Heidelberg, 1985. This algorithm is also the
-subject of: KM Chandy, J Misra. *Proofs of distributed algorithms: An
-exercise.* Developments in concurrency and communication (1990), where the
-author use UNITY to formally verify the algorithm.
+A good description of the algorithm can be found in : Mattern, Friedemann.
+*Algorithms for distributed termination detection.* Distributed computing 2.3
+(1987): 161-175. In this paper, the algorithm is called the Channel Counting
+Algorithm and is described in Section 7.
 
-The algorithm can also be found in : Mattern, Friedemann. *Algorithms for
-distributed termination detection.* Distributed computing 2.3 (1987): 161-175.
-In this paper, the algorithm is called the Channel Counting Algorithm and is
-described in Section 7.
+It seems to have been initially propose in Section 4 of: Kumar, Devendra.  *A
+class of termination detection algorithms for distributed computations.*
+International Conference on Foundations of Software Technology and Theoretical
+Computer Science.  Springer, Berlin, Heidelberg, 1985. This algorithm is also
+the subject of: KM Chandy, J Misra. *Proofs of distributed algorithms: An
+exercise.* Developments in concurrency and communication (1990), where the
+author use UNITY to formally verify it.
 
 The algorithm is specified in [`Termination.tla`](Termination.tla).
 
