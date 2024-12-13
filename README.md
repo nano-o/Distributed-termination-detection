@@ -1,16 +1,20 @@
-# Distributed termination detection -- verified with Apalache, Isabelle/HOL, and TLAPS
+# Distributed termination detection -- an exercise in inductive reasoning
 
-We formalize and prove correct a simple distributed algorithm using an
-inductive invariant. This is a proof pearl that is a great example of
-inductive reasoning in distributed algorithms.
+We formalize a simple distributed algorithm and we set up the Apalache
+model-checker to facilitate searching for an inductive invariant that implies
+the safety property of the algorithm. This is a great exercise in inductive
+reasoning. The solution appears in the master branch, but you should try to
+find it yourself. Note that you should have working knowledge of TLA+ to do the
+exercise.
 
 The algorithm detects the termination of of a message-driven computation.  We
 have a set of processes exchange messages.  Initialy there are a few messages
 in the network. A process can receive a messages and send 0, 1, or more
 messages as a response, in a single atomic step.  A daemon visits arbitrary
-processes one by one, each time noting how many messages the process has sent to each
-other process, and how many it has received from each other process.  When the daemon
-sees that all numbers match, it declares that the system has terminated.
+processes one by one, each time noting how many messages the process has sent
+to each other process, and how many it has received from each other process.
+When the daemon sees that all numbers match, it declares that the system has
+terminated.
 
 This is the algorithm described in Section 4 of: Kumar, Devendra.  *A class of
 termination detection algorithms for distributed computations.* International
@@ -25,41 +29,38 @@ distributed termination detection.* Distributed computing 2.3 (1987): 161-175.
 In this paper, the algorithm is called the Channel Counting Algorithm and is
 described in Section 7.
 
-## Correctness proof with Apalache
+The algorithm is specified in [`Termination.tla`](Termination.tla).
 
-The original proof is an operational proof that considers entire executions and
-is thus hard to formalize (the principle is illustrated in Figure 8, Section 6,
-of *Algorithms for distributed termination detection.*). Instead,
-[`Termination.tla`](Termination.tla) shows that there is a very simple
-inductive invariant that proves the correctness of the algorithm.
+## Exploring behaviors with the TLC model-checker
 
-[`Termination.tla`](Termination.tla) contains both the specification of the
-algorithm and an inductive invariant that proves its safety.
-[`TerminationApalache.tla`](TerminationApalache.tla) fixes the number of
-processes and adds type annotations for model-checking with Apalache, which is
-able to prove that the invariants are inductive and that they imply the safety
-property for up to 6 processes (on a 2022 desktop machine).
+You can start by exploring a few behaviors to form some intuition.
+To do that, think of a state predicate you want the behavior to end with, and create a "canary invariant" that asserts the negation of the predicate.
+For example, run `make tlc` to check `Canary1`.
+You can add new canaries and modify the Makefile accordingly.
 
-To check the proof with apalache, run `make verify`.
+## Searching for inductive invariants with Apalache
 
-## Correctness proof with TLAPS
+The original correctness proof is an operational proof that considers entire
+executions and is thus hard to formalize (the principle is illustrated in
+Figure 8, Section 6, of *Algorithms for distributed termination detection.*).
+Instead we are going to look for an inductive invariant that proves the
+correctness of the algorithm.
 
-[`Termination_proof.tla`](Termination_proof.tla) contains an interactive proof
-showing that the specification implies the invariants and the safety property,
-for an arbitrary set of processes. The proof is checked by TLAPS, the TLA+ Proof
-System, and it is very similar to the Isabelle proof described below.
+For now, `make verify` checks whether `TypeOK` is inductive (it is) and whether `Safety` is inductive relative to `TypeOK` (it is not).
+The goal of the exercise is to strengthen `Safety` until it becomes inductive.
 
-## Correctness proof with Isabelle/HOL
-
-We also prove the algorithm correct for any number of processes using
-Isabelle/HOL. You can browse the proof at
-[`Termination/browser_info/index.html`](https://htmlpreview.github.io/?https://raw.githubusercontent.com/nano-o/Distributed-termination-detection/master/Termination/browser_info/Termination.html).
-The actual theory file (which must be opened using
-[Isabelle](https://isabelle.in.tum.de/)) is
-[`Termination/Termination.thy`](Termination/Termination.thy)
+To help you find what to add to `Safety` to make it inductive, run `make verify` and then `./show_cti.sh`.
+If `Safety` is not inductive, this will display the counterexample to induction found by Apalache.
+You then need to strenghten `Safety` so as to rule out the pre-state.
 
 ## PlusCal version of the specification
 
 The PlusCal language allows writing specifications in a more procedural style than in TLA+, and it transpiles to TLA+.
 [`TerminationPlusCal.tla`](TerminationPlusCal.tla) contains PlusCal version of the specification.
+It might be easier to read at first.
+
 To transpile to TLA+, run `make transpile`. Note that this will modify the file in place.
+
+## Typesetting
+
+You can also produce PDF versions of the specifications using `make typeset`

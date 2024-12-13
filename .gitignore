@@ -3,6 +3,7 @@
 
 !*.md
 !*.pdf
+!*.sh
 
 ## Whitelist .gitignore
 !.gitignore
