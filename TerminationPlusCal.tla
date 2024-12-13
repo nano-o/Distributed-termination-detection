@@ -1,4 +1,4 @@
----------------------------- MODULE Termination ---------------------------
+---------------------------- MODULE TerminationPlusCal ---------------------------
 
 (***************************************************************************)
 (* A version of the specification in PlusCal.                              *)
@@ -25,21 +25,18 @@ pb == CHOOSE p \in P : p # pa
         \* The numbers recorded by the daemon:
         S = [p \in P |-> [q \in P |-> 0]];
         R = [p \in P |-> [q \in P |-> 0]];
-        \* the set of nodes that the daemon has visited:
+        \* the set of processes that the daemon has visited:
         visited = {};
-        \* total number of messages ever sent. This is a ghost variable used to limit state-exploration by TLC:
-        total = 1;
     define {
         Correctness == pc[d] = "Done" => msgs = EmptyBag
     }
-    process (node \in P) {
+    process (proc \in P) {
         sendRcv:    with (m \in BagToSet(msgs)) {
                     when (m[2] = self);
                     r[self] := [r[self] EXCEPT ![m[1]] = @ + 1];
                     with (Q \in SUBSET (P \ {self})) {
                         msgs := (msgs (-) SetToBag({m})) (+) SetToBag({<<self,p>> : p \in Q});
                         s[self] := [p \in P |-> IF p \in Q THEN @[p]+1 ELSE @[p]];
-                        total := total + Cardinality(Q) \* ghost update 
                     }
                 };
                 goto sendRcv
@@ -47,7 +44,7 @@ pb == CHOOSE p \in P : p # pa
     process (daemon = d) {
         loop:   while (visited # P \/ \E p,q \in visited : p # q /\ S[p][q] # R[q][p]) {
                     with (p \in P) {
-                        S[p] := s[p]; 
+                        S[p] := s[p];
                         R[p] := r[p];
                         visited := visited \union {p}
                     }
@@ -56,7 +53,6 @@ pb == CHOOSE p \in P : p # pa
 }
 *)
 
+Canary1 == \neg pc[d] = "Done"
+
 =============================================================================
-\* Modification History
-\* Last modified Sun Aug 21 22:11:24 PDT 2022 by nano
-\* Created Mon Mar 13 09:03:31 PDT 2017 by nano

@@ -4,6 +4,7 @@
 !*.md
 !*.pdf
 !*.sh
+!Makefile
 
 ## Whitelist .gitignore
 !.gitignore
